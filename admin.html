@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新聞編集室 プロフェッショナル</title>
+    <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;700&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style id="dynamic-print-style"></style>
+
+    <style>
+      body { font-family: "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 20px; background: #333; color: #333; }
+      
+      /* --- ヘッダー --- */
+      .top-bar { background: #2c3e50; padding: 12px 20px; border-radius: 8px 8px 0 0; display: flex; gap: 15px; align-items: center; color: white; }
+      .bar-title { font-weight: bold; font-size: 1.1rem; margin-right: auto; }
+      .top-btn { background: #34495e; color: white; border: 1px solid #7f8c8d; padding: 6px 15px; border-radius: 4px; cursor: pointer; font-size: 0.9rem; transition:0.2s; }
+      .top-btn:hover { background: #455a64; }
+      .btn-save { background: #27ae60; border-color: #2ecc71; }
+      .btn-load { background: #e67e22; border-color: #d35400; }
+
+      /* --- 管理パネル --- */
+      .admin-panel { background: #f5f5f5; padding: 20px; border-radius: 0 0 12px 12px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+      .config-section { display: flex; gap: 20px; flex-wrap: wrap; }
+      .config-col { flex: 1; min-width: 280px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+      .config-col h3 { margin-top: 0; font-size: 1rem; color: #007bff; border-bottom: 2px solid #e0e0e0; padding-bottom: 8px; margin-bottom: 12px; }
+
+      .control-group { margin-bottom: 12px; }
+      .control-group label { font-weight: bold; font-size: 0.85rem; display: block; margin-bottom: 4px; color: #555; }
+      input[type="range"], select, input[type="text"], input[type="date"] { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+      
+      .action-btn { width: 100%; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: white; margin-top: 8px; }
+      .btn-print { background: #2e7d32; box-shadow: 0 3px 0 #1b5e20; }
+      .btn-print:active { transform: translateY(3px); box-shadow: none; }
+      .btn-free { background: #8e44ad; margin-bottom: 10px; font-size: 0.9rem;} 
+      .btn-refresh { background: #1976d2; color: white; border: none; padding: 4px 8px; font-size: 0.8rem; border-radius: 3px; cursor: pointer; margin-left: 10px;}
+
+      /* リストエリア */
+      .filter-box { background: #e3f2fd; padding: 10px; border-radius: 6px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; }
+      .filter-row { display: flex; gap: 10px; align-items: center; justify-content: space-between; font-size: 0.9rem; }
+      
+      .article-list { max-height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 5px; background: #fafafa; border-radius: 4px; }
+      .article-item { background: white; border-bottom: 1px solid #eee; padding: 10px; margin-bottom: 5px; border-radius: 4px; transition: 0.2s; border-left: 4px solid transparent; }
+      .article-item.selected { border-left-color: #2ecc71; background: #f0fff4; }
+      .article-item.is-free { border-left-color: #9b59b6; background: #fdf2ff; }
+      
+      .item-main { display: flex; align-items: center; margin-bottom: 5px; }
+      .drag-handle { color: #ccc; margin-right: 8px; font-size: 1.2rem; cursor: grab; }
+      .drag-enabled .drag-handle { color: #333; }
+      
+      .item-settings { margin-left: 28px; display: flex; gap: 5px; flex-wrap: wrap; }
+      .item-settings select { width: auto; font-size: 0.75rem; padding: 2px 5px; height: 24px; border-color: #ddd; }
+
+      /* --- モーダル --- */
+      .modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center; }
+      .modal-box { background: white; padding: 20px; border-radius: 10px; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+      .modal-header { font-weight: bold; font-size: 1.2rem; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+      .modal-body { margin-bottom: 20px; }
+      .modal-footer { text-align: right; display: flex; gap: 10px; justify-content: flex-end; }
+      .modal-btn { padding: 8px 15px; border-radius: 4px; border: none; cursor: pointer; font-weight: bold; }
+      .btn-cancel { background: #ccc; color: #333; }
+      .btn-confirm { background: #007bff; color: white; }
+
+      /* --- プレビュー (新聞紙面) --- */
+      #paper-area { background: white; margin: 0 auto; padding: 12mm; box-shadow: 0 0 30px rgba(0,0,0,0.5); box-sizing: border-box; overflow: hidden; position: relative; font-family: "Noto Sans JP", sans-serif; }
+      .font-mincho { font-family: "Shippori Mincho", "Hiragino Mincho ProN", serif; }
+      .page-a4-v { width: 210mm; height: 297mm; } .page-a4-h { width: 297mm; height: 210mm; }
+      
+      .newspaper-header { text-align: center; border-bottom: 4px double #333; margin-bottom: 15px; padding-bottom: 10px; height: 12%; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; }
+      .newspaper-title { font-size: 3.5rem; margin: 0; line-height: 1; letter-spacing: 0.1em; outline: none; }
+      .newspaper-date { text-align: right; font-size: 0.9rem; margin-top: 10px; outline: none; }
+
+      /* 記事コンテナ */
+      .articles-container { width: 100%; height: 86%; }
+
+      /* CSS変数初期値 */
+      :root { 
+        --base-font-size: 12px; 
+        --col-base-px: 200px;
+        --img-scale: 0.96;
+        --img-aspect: auto;
+        --img-fit: contain; 
+      }
+
+      /* 記事ボックス */
+      .article-box { 
+        margin-bottom: 15px; padding: 8px; font-size: var(--base-font-size); text-align: justify; 
+        break-inside: avoid; overflow: hidden; position: relative; 
+      }
+      .allow-break .article-box { break-inside: auto; border-bottom: 1px dashed #ccc; }
+      
+      /* 見出し */
+      .article-title { font-weight: 700; font-size: 1.5em; line-height: 1.3; margin-bottom: 6px; border-bottom: 2px solid #333; display: block; }
+      .title-outline .article-title { color: white; text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000; border-bottom: 4px solid #000; padding: 2px 5px; }
+      .title-solid .article-title { background: #000; color: #fff; padding: 4px 10px; border-radius: 3px; border-bottom: none; }
+      
+      .article-meta { font-size: 0.8em; color: #555; margin-bottom: 5px; text-align: right; display: block; }
+      .article-body { line-height: 1.7; white-space: pre-wrap; font-size: 1em; }
+
+      /* --- 画像スタイル（横書きモードを強制してサイズ計算を安定させる） --- */
+      .article-img-wrapper {
+        writing-mode: horizontal-tb; /* 重要: ここだけ横書きルール */
+        display: block; 
+        margin: 0 auto 8px auto;
+        
+        /* 基準幅 × 倍率 = 実際の幅 */
+        width: calc(var(--col-base-px) * var(--img-scale));
+        max-width: 100%;
+        
+        aspect-ratio: var(--img-aspect); 
+        box-sizing: border-box; overflow: hidden;
+        border: none; box-shadow: none; 
+      }
+      
+      .article-img-wrapper img {
+        width: 100%; height: 100%; display: block;
+        object-fit: var(--local-fit, var(--img-fit)); 
+        object-position: center;
+        border: 1px solid #999; box-shadow: 3px 3px 0 #ddd; box-sizing: border-box;
+      }
+      
+      /* 形が「そのまま」の時は高さを自動にする */
+      .article-img-wrapper.is-shape-auto { height: auto !important; aspect-ratio: auto !important; }
+      .article-img-wrapper.is-shape-auto img { height: auto !important; }
+
+      .img-float { float: left; margin: 0 10px 5px 0; max-width: calc(var(--col-base-px) * 0.5) !important; }
+
+      /* 縦書き */
+      .vertical-mode { writing-mode: vertical-rl; text-orientation: upright; column-fill: auto; }
+      .vertical-mode .article-box { border-left: 1px solid #ddd; padding-left: 10px; margin-left: 10px; margin-bottom: 0; border-bottom: none !important; }
+      .vertical-mode .article-title { border-bottom: none; border-left: 4px solid #333; padding-left: 5px; margin-left: 5px; }
+      .vertical-mode.title-outline .article-title { border-left: 4px solid #000; border-bottom: none; }
+      .vertical-mode.title-solid .article-title { border-left: none; }
+      
+      /* 縦書き時の画像回り込み（右上が始点） */
+      .vertical-mode .article-img-wrapper.img-float { 
+        float: inline-start; 
+        margin: 0 0 10px 10px; 
+        max-width: calc(var(--col-base-px) * 0.9) !important; 
+      }
+
+      /* 段組み */
+      .cols-1 { column-count: 1; } .cols-2 { column-count: 2; column-gap: 30px; column-rule: 1px solid #ccc; }
+      .cols-3 { column-count: 3; column-gap: 20px; column-rule: 1px solid #ccc; } .cols-4 { column-count: 4; column-gap: 15px; column-rule: 1px solid #ccc; }
+
+      @media print {
+        body { margin: 0; padding: 0; background: white; }
+        .top-bar, .admin-panel, .modal-overlay { display: none !important; }
+        #paper-area { box-shadow: none; margin: 0 !important; padding: 10mm !important; overflow: hidden; page-break-after: avoid; }
+        * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <div class="top-bar">
+      <span class="bar-title">📰 編集室 Ver.5.3</span>
+      <button class="top-btn btn-save" onclick="openSaveModal()">一時保存</button>
+      <button class="top-btn btn-load" onclick="openLoadModal()">呼出</button>
+      <div style="flex:1;"></div>
+      <a href="<?= ScriptApp.getService().getUrl() ?>" class="top-btn" target="_top">← 投稿画面へ</a>
+    </div>
+
+    <div class="admin-panel">
+      <div class="config-section">
+        
+        <div class="config-col">
+          <h3>1. レイアウト</h3>
+          <div class="control-group"><label>用紙向き</label>
+            <select id="paperOri" onchange="updateLayout()"><option value="v">縦 (A4)</option><option value="h">横 (A4)</option></select>
+          </div>
+          <div class="control-group"><label>文字の向き</label>
+            <select id="textDir" onchange="updateLayout()"><option value="vertical">縦書き</option><option value="horizontal">横書き</option></select>
+          </div>
+          <div class="control-group"><label>段組み</label>
+            <select id="colCount" onchange="updateLayout()"><option value="1">1段</option><option value="2">2段</option><option value="3" selected>3段</option><option value="4">4段</option></select>
+          </div>
+          <div class="control-group"><label>文字サイズ</label>
+            <input type="range" id="fontSizeRange" min="8" max="24" value="12" step="0.5" oninput="updateStyles()">
+          </div>
+          <div class="control-group"><label><input type="checkbox" id="allowBreak" onchange="refreshListAndPaper()"> 記事の途中分割を許可</label></div>
+        </div>
+
+        <div class="config-col">
+          <h3>2. デザイン</h3>
+          <div class="control-group"><label>フォント</label>
+            <select id="fontFamily" onchange="updateLayout()"><option value="mincho">新聞明朝</option><option value="gothic">ゴシック</option></select>
+          </div>
+          <div class="control-group"><label>見出し</label>
+            <select id="titleStyle" onchange="updateLayout()"><option value="normal">シンプル</option><option value="outline">袋文字</option><option value="solid">黒帯</option></select>
+          </div>
+          <div class="control-group"><label>基本写真サイズ</label>
+            <select id="imgSizeSelect" onchange="updateStyles()"><option value="0.96" selected>全幅</option><option value="0.7">普通</option><option value="0.4">小</option><option value="0">なし</option></select>
+          </div>
+          <div class="control-group"><label>基本写真の形</label>
+            <select id="imgShapeSelect" onchange="updateStyles()">
+              <option value="auto">そのまま (全体)</option>
+              <option value="1/1">正方形</option>
+              <option value="3/4">縦長 (3:4)</option>
+              <option value="16/9">横長 (16:9)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="config-col" style="flex: 1.5;">
+          <h3>3. 記事編集 <button class="btn-refresh" onclick="loadArticles()">更新</button></h3>
+          
+          <button class="action-btn btn-free" onclick="openFreeModal()">＋ 自由記述欄を追加</button>
+
+          <div class="filter-box">
+            <div class="filter-row">
+              <input type="text" id="searchInput" placeholder="🔍 検索..." oninput="refreshListAndPaper()" style="flex:1;">
+            </div>
+            <div class="filter-row">
+              <label><input type="checkbox" id="showSelectedOnly" onchange="refreshListAndPaper()"> 選択中のみ</label>
+              <label><input type="checkbox" id="enableDrag" onchange="toggleDrag()"> ✋ 並替ON</label>
+            </div>
+          </div>
+          
+          <div id="articleList" class="article-list">読み込み中...</div>
+          <button class="action-btn btn-print" onclick="window.print()">🖨️ 印刷 / PDF保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- プレビュー -->
+    <div id="paper-area" class="page-a4-v font-mincho">
+      <header class="newspaper-header">
+        <h1 class="newspaper-title" contenteditable="true">学級新聞</h1>
+        <div class="newspaper-date" contenteditable="true"></div>
+      </header>
+      <div id="articlesContainer" class="articles-container cols-3 vertical-mode"></div>
+    </div>
+
+    <!-- モーダル定義 -->
+    <div id="freeModal" class="modal-overlay">
+      <div class="modal-box">
+        <div class="modal-header">自由記述欄の追加</div>
+        <div class="modal-body">
+          <label>見出し:<input type="text" id="freeTitle" value="編集後記"></label><br><br>
+          <label>本文:<textarea id="freeBody" rows="5" style="width:100%; border:1px solid #ccc; border-radius:4px;"></textarea></label>
+        </div>
+        <div class="modal-footer">
+          <button class="modal-btn btn-cancel" onclick="closeModal('freeModal')">キャンセル</button>
+          <button class="modal-btn btn-confirm" onclick="addFreeArticle()">追加</button>
+        </div>
+      </div>
+    </div>
+    <div id="saveModal" class="modal-overlay">
+      <div class="modal-box">
+        <div class="modal-header">現在の状態を保存</div>
+        <div class="modal-body"><label>保存名:<input type="text" id="saveName" placeholder="例：10月号"></label></div>
+        <div class="modal-footer"><button class="modal-btn btn-cancel" onclick="closeModal('saveModal')">キャンセル</button><button class="modal-btn btn-confirm" onclick="executeSave()">保存</button></div>
+      </div>
+    </div>
+    <div id="loadModal" class="modal-overlay">
+      <div class="modal-box">
+        <div class="modal-header">保存データを呼び出し</div>
+        <div class="modal-body"><select id="loadSelect" style="width:100%; padding:10px;"><option>読み込み中...</option></select></div>
+        <div class="modal-footer"><button class="modal-btn btn-cancel" onclick="closeModal('loadModal')">キャンセル</button><button class="modal-btn btn-confirm" onclick="executeLoad()">復元</button></div>
+      </div>
+    </div>
+
+    <script>
+      let allArticles = [];
+      let freeArticles = [];
+      let articleStates = {}; 
+      let customOrder = []; 
+      
+      let currentRenderList = [];
+
+      window.onload = function() {
+        initDate();
+        loadArticles(); 
+      };
+
+      function initDate() {
+        const now = new Date();
+        document.querySelector('.newspaper-date').innerText = `${now.getFullYear()}年 ${now.getMonth() + 1}月 ${now.getDate()}日 発行`;
+      }
+
+      function loadArticles() {
+        google.script.run.withSuccessHandler(data => {
+          allArticles = data;
+          allArticles.forEach((art, i) => {
+            if (!articleStates[art.id]) articleStates[art.id] = { checked: i < 3, imgPos:'top', imgSize:'default', imgShape:'default' };
+          });
+          refreshListAndPaper();
+        }).getArticles();
+      }
+
+      // --- リストとプレビューの更新 ---
+      function refreshListAndPaper() {
+        let combined = [...freeArticles, ...allArticles];
+
+        if (customOrder.length > 0) {
+          let ordered = [], others = [];
+          customOrder.forEach(id => {
+            const found = combined.find(a => a.id === id);
+            if (found) ordered.push(found);
+          });
+          combined.forEach(a => { if (!customOrder.includes(a.id)) others.push(a); });
+          combined = [...ordered, ...others];
+        }
+
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const showSelected = document.getElementById('showSelectedOnly').checked;
+
+        const displayedList = combined.filter(art => {
+          const state = articleStates[art.id] || {};
+          if (showSelected && !state.checked) return false;
+          if (query && !(art.title+art.reporterName).toLowerCase().includes(query)) return false;
+          return true;
+        });
+
+        // プレビュー用（順序適用済み、チェック済みのみ）
+        currentRenderList = combined.filter(art => {
+           const state = articleStates[art.id] || {};
+           return state.checked;
+        });
+        
+        renderList(displayedList);
+        renderPaper(); 
+      }
+
+      function renderList(list) {
+        const listDiv = document.getElementById('articleList');
+        listDiv.innerHTML = '';
+        const draggable = document.getElementById('enableDrag').checked;
+
+        list.forEach(art => {
+          const state = articleStates[art.id] || {};
+          const div = document.createElement('div');
+          div.className = 'article-item' + (state.checked ? ' selected' : '') + (art.isFree ? ' is-free' : '');
+          div.dataset.id = art.id;
+          if (draggable) div.draggable = true;
+
+          const sPos = state.imgPos || 'top';
+          const sImg = state.imgSize || 'default';
+          const sShp = state.imgShape || 'default';
+
+          div.innerHTML = `
+            <div class="item-main">
+              <span class="drag-handle">☰</span>
+              <label style="cursor:pointer; flex:1; display:flex; align-items:center;">
+                <input type="checkbox" onchange="updateState('${art.id}','checked',this.checked)" ${state.checked?'checked':''}>
+                <strong style="margin-left:5px;">${art.title}</strong>
+              </label>
+              ${art.isFree ? `<button onclick="deleteFree('${art.id}')" style="margin-left:5px;">🗑️</button>` : ''}
+            </div>
+            <div class="item-settings">
+              <select onchange="updateState('${art.id}','imgPos',this.value)">
+                <option value="top" ${sPos=='top'?'selected':''}>上</option>
+                <option value="float" ${sPos=='float'?'selected':''}>回込</option>
+                <option value="bottom" ${sPos=='bottom'?'selected':''}>下</option>
+              </select>
+              <select onchange="updateState('${art.id}','imgSize',this.value)" ${!art.imageUrl && !art.isFree ?'disabled':''}>
+                <option value="default" ${sImg=='default'?'selected':''}>幅:標準</option>
+                <option value="0.96" ${sImg=='0.96'?'selected':''}>幅:全幅</option>
+                <option value="0.7" ${sImg=='0.7'?'selected':''}>幅:中</option>
+                <option value="0.4" ${sImg=='0.4'?'selected':''}>幅:小</option>
+              </select>
+              <select onchange="updateState('${art.id}','imgShape',this.value)" ${!art.imageUrl && !art.isFree ?'disabled':''}>
+                <option value="default" ${sShp=='default'?'selected':''}>形:標準</option>
+                <option value="auto" ${sShp=='auto'?'selected':''}>形:そのまま</option>
+                <option value="1/1" ${sShp=='1/1'?'selected':''}>形:正方形</option>
+                <option value="3/4" ${sShp=='3/4'?'selected':''}>形:縦長</option>
+                <option value="16/9" ${sShp=='16/9'?'selected':''}>形:横長</option>
+              </select>
+            </div>
+          `;
+          
+          if (draggable) addDragEvents(div);
+          listDiv.appendChild(div);
+        });
+      }
+
+      function updateState(id, key, val) {
+        if (!articleStates[id]) articleStates[id] = {};
+        articleStates[id][key] = val;
+        refreshListAndPaper();
+      }
+
+      // --- プレビュー描画 ---
+      function renderPaper() {
+        const container = document.getElementById('articlesContainer');
+        container.innerHTML = '';
+        
+        const gScale = document.getElementById('imgSizeSelect').value;
+        const gShape = document.getElementById('imgShapeSelect').value;
+
+        currentRenderList.forEach(art => {
+          const state = articleStates[art.id] || {};
+          const box = document.createElement('div');
+          box.className = 'article-box';
+          
+          const imgPos = state.imgPos || 'top';
+          const imgScale = (state.imgSize && state.imgSize !== 'default') ? state.imgSize : gScale;
+          const imgShape = (state.imgShape && state.imgShape !== 'default') ? state.imgShape : gShape;
+
+          let imgHtml = '';
+          if (art.imageUrl) {
+            let cls = 'article-img-wrapper';
+            if (imgPos === 'float') cls += ' img-float'; else cls += ' img-block';
+            if (imgShape === 'auto') cls += ' is-shape-auto';
+            
+            let sty = [];
+            // CSS変数（計算された段幅）× 倍率
+            if (imgScale) sty.push(`width:calc(var(--col-base-px) * ${imgScale})`);
+            
+            if (imgShape !== 'auto') {
+              sty.push(`aspect-ratio:${imgShape}`);
+              sty.push(`--local-fit:cover`);
+            } else {
+              sty.push(`--local-fit:contain`);
+            }
+            imgHtml = `<div class="${cls}" style="${sty.join(';')}"><img src="${art.imageUrl}" referrerpolicy="no-referrer"></div>`;
+          }
+
+          const titleHtml = `<div class="article-title">${art.title}</div>`;
+          const metaHtml = `<div class="article-meta">${art.reporterName}</div>`;
+          const bodyHtml = `<div class="article-body">${art.body}</div>`;
+
+          if (imgPos === 'bottom') box.innerHTML = titleHtml + metaHtml + bodyHtml + imgHtml;
+          else box.innerHTML = titleHtml + metaHtml + imgHtml + bodyHtml;
+          
+          container.appendChild(box);
+        });
+        
+        updateLayout();
+      }
+
+      function updateLayout() {
+        const paper = document.getElementById('paper-area');
+        const cont = document.getElementById('articlesContainer');
+        const ori = document.getElementById('paperOri').value;
+        const dir = document.getElementById('textDir').value;
+        const col = parseInt(document.getElementById('colCount').value);
+        const font = document.getElementById('fontFamily').value;
+        const tStyle = document.getElementById('titleStyle').value;
+        
+        paper.className = (ori==='h' ? 'page-a4-h' : 'page-a4-v') + (font==='mincho' ? ' font-mincho' : '');
+        cont.className = 'articlesContainer'; 
+        cont.classList.add(dir === 'vertical' ? 'vertical-mode' : 'horizontal-mode');
+        cont.classList.add('title-' + tStyle);
+        cont.classList.add('cols-' + col);
+        if (document.getElementById('allowBreak').checked) cont.classList.add('allow-break');
+
+        document.getElementById('dynamic-print-style').innerHTML = ori==='h' ? '@page{size:A4 landscape;margin:0}' : '@page{size:A4 portrait;margin:0}';
+
+        const mmToPx = 3.78;
+        const padding = 24 * mmToPx; 
+        const paperW = (ori === 'h' ? 297 : 210) * mmToPx;
+        const gapMm = (col===2?30 : col===3?20 : col===4?15 : 0);
+        const gapPx = gapMm * mmToPx;
+
+        // 段幅計算: 紙面幅を分割（縦書きでもこれが基準になる）
+        const colWidth = ((paperW - padding) - (gapPx * (col - 1))) / col;
+        document.documentElement.style.setProperty('--col-base-px', colWidth + 'px');
+      }
+
+      function updateStyles() {
+        const root = document.documentElement;
+        root.style.setProperty('--base-font-size', document.getElementById('fontSizeRange').value + 'px');
+        const gShape = document.getElementById('imgShapeSelect').value;
+        root.style.setProperty('--img-aspect', gShape);
+        root.style.setProperty('--img-fit', gShape === 'auto' ? 'contain' : 'cover');
+        root.style.setProperty('--img-scale', document.getElementById('imgSizeSelect').value);
+        
+        // 即時反映のため再描画
+        refreshListAndPaper();
+      }
+
+      // --- 以下モーダル制御等の既存関数 ---
+      function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+      function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+      function openFreeModal() { openModal('freeModal'); }
+      function openSaveModal() { openModal('saveModal'); }
+      function openLoadModal() { 
+        openModal('loadModal');
+        const sel = document.getElementById('loadSelect');
+        sel.innerHTML = '<option>読み込み中...</option>';
+        google.script.run.withSuccessHandler(list => {
+          sel.innerHTML = '';
+          if(list.length==0) sel.innerHTML='<option value="">保存データなし</option>';
+          list.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item.name;
+            opt.innerText = item.name + ' (' + item.date + ')';
+            sel.appendChild(opt);
+          });
+        }).getSavedList();
+      }
+
+      function addFreeArticle() {
+        const title = document.getElementById('freeTitle').value;
+        const body = document.getElementById('freeBody').value;
+        if(!title) return;
+        const id = 'free_' + new Date().getTime();
+        const newArt = { id:id, title:title, body:body, imageUrl:"", reporterName:"自由記述", isFree:true };
+        freeArticles.push(newArt);
+        articleStates[id] = { checked:true, imgPos:'top', imgSize:'default', imgShape:'default' };
+        if(customOrder.length>0) customOrder.unshift(id);
+        refreshListAndPaper();
+        closeModal('freeModal');
+        document.getElementById('freeTitle').value = "編集後記";
+        document.getElementById('freeBody').value = "";
+      }
+      function deleteFree(id) {
+        if(!confirm('削除しますか？')) return;
+        freeArticles = freeArticles.filter(a => a.id !== id);
+        delete articleStates[id];
+        refreshListAndPaper();
+      }
+
+      function executeSave() {
+        const name = document.getElementById('saveName').value || '一時保存データ';
+        const saveData = {
+          freeArticles: freeArticles, articleStates: articleStates, customOrder: customOrder,
+          settings: {
+            paperOri: document.getElementById('paperOri').value,
+            textDir: document.getElementById('textDir').value,
+            colCount: document.getElementById('colCount').value,
+            fontFamily: document.getElementById('fontFamily').value,
+            titleStyle: document.getElementById('titleStyle').value,
+            imgSize: document.getElementById('imgSizeSelect').value,
+            imgShape: document.getElementById('imgShapeSelect').value,
+            fontSize: document.getElementById('fontSizeRange').value,
+            allowBreak: document.getElementById('allowBreak').checked,
+            newsTitle: document.querySelector('.newspaper-title').innerText,
+            newsDate: document.querySelector('.newspaper-date').innerText
+          }
+        };
+        google.script.run.withSuccessHandler(r=>{ alert(r.message); closeModal('saveModal'); }).saveLayoutState(name, JSON.stringify(saveData));
+      }
+
+      function executeLoad() {
+        const name = document.getElementById('loadSelect').value;
+        if(!name) return;
+        google.script.run.withSuccessHandler(res => {
+          if(!res.success) { alert(res.message); return; }
+          const data = JSON.parse(res.data);
+          if(data.freeArticles) freeArticles = data.freeArticles;
+          if(data.articleStates) articleStates = data.articleStates;
+          if(data.customOrder) customOrder = data.customOrder;
+          
+          const s = data.settings;
+          if(s) {
+            document.getElementById('paperOri').value = s.paperOri || 'v';
+            document.getElementById('textDir').value = s.textDir || 'vertical';
+            document.getElementById('colCount').value = s.colCount || '3';
+            document.getElementById('fontFamily').value = s.fontFamily || 'mincho';
+            document.getElementById('titleStyle').value = s.titleStyle || 'normal';
+            document.getElementById('imgSizeSelect').value = s.imgSize || '0.96';
+            document.getElementById('imgShapeSelect').value = s.imgShape || 'auto';
+            document.getElementById('fontSizeRange').value = s.fontSize || '12';
+            document.getElementById('allowBreak').checked = s.allowBreak || false;
+            if(s.newsTitle) document.querySelector('.newspaper-title').innerText = s.newsTitle;
+            if(s.newsDate) document.querySelector('.newspaper-date').innerText = s.newsDate;
+          }
+          refreshListAndPaper();
+          closeModal('loadModal');
+          alert('復元しました');
+        }).loadLayoutState(name);
+      }
+
+      function toggleDrag() {
+        const enabled = document.getElementById('enableDrag').checked;
+        if(enabled) document.getElementById('articleList').classList.add('drag-enabled');
+        else document.getElementById('articleList').classList.remove('drag-enabled');
+        refreshListAndPaper();
+      }
+      function addDragEvents(item) {
+        item.addEventListener('dragstart',e=>item.classList.add('dragging'));
+        item.addEventListener('dragend',e=>{ item.classList.remove('dragging'); saveListOrder(); refreshListAndPaper(); });
+        document.getElementById('articleList').addEventListener('dragover',e=>{
+          e.preventDefault();
+          const after = getDragAfterElement(document.getElementById('articleList'), e.clientY);
+          const dragging = document.querySelector('.dragging');
+          if(after==null) document.getElementById('articleList').appendChild(dragging);
+          else document.getElementById('articleList').insertBefore(dragging, after);
+        });
+      }
+      function getDragAfterElement(cont, y) {
+        return [...cont.querySelectorAll('.article-item:not(.dragging)')].reduce((closest, child)=>{
+          const box = child.getBoundingClientRect();
+          const offset = y - box.top - box.height/2;
+          if(offset < 0 && offset > closest.offset) return {offset:offset, element:child};
+          else return closest;
+        }, {offset:Number.NEGATIVE_INFINITY}).element;
+      }
+      function saveListOrder() {
+        customOrder = Array.from(document.querySelectorAll('#articleList .article-item')).map(d=>d.dataset.id);
+      }
+    </script>
+  </body>
+</html>
