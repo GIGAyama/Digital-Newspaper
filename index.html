@@ -1,123 +1,271 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
   <head>
     <base target="_top">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>クラス新聞 記者投稿ポスト</title>
-    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+    <title>デジタルクラス新聞社</title>
+    <!-- Pico.css -->
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@1.5.10/css/pico.min.css">
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
     <style>
-      body { background-color: #e0f7fa; padding: 20px; font-family: "M PLUS Rounded 1c", sans-serif; }
-      .container { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; border: 4px solid #00acc1; }
-      h1 { color: #00838f; text-align: center; font-size: 1.8rem; margin-bottom: 20px; border-bottom: 3px dashed #b2ebf2; padding-bottom: 10px; }
-      label { font-weight: bold; color: #444; margin-top: 15px; }
-      input, textarea, select { border: 2px solid #b2ebf2 !important; border-radius: 10px !important; }
-      .btn-send { background-color: #ff9800; border: none; font-weight: bold; width: 100%; margin-top: 30px; border-radius: 50px; padding: 15px; font-size: 1.2rem; box-shadow: 0 4px 0 #e65100; transition: transform 0.1s; }
-      .btn-send:active { transform: translateY(4px); box-shadow: none; }
-      .btn-send:disabled { background-color: #ccc; box-shadow: none; cursor: not-allowed; }
-      
-      .loader { display: none; text-align: center; margin-top: 15px; color: #00838f; font-weight: bold; }
-      .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid #b2ebf2; border-top: 3px solid #00838f; border-radius: 50%; animation: spin 1s linear infinite; vertical-align: middle; margin-right: 10px; }
-      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      :root {
+        --primary: #2c3e50;
+        --accent: #3498db;
+        --bg: #f4f6f8;
+        --card-bg: #ffffff;
+        --text: #000000;
+      }
 
-      .modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 1000; animation: fadeIn 0.3s; }
-      .modal-content { background: white; width: 85%; max-width: 400px; margin: 20vh auto; padding: 30px; border-radius: 20px; text-align: center; border: 5px solid #ffeb3b; animation: popIn 0.4s; }
-      .emoji { font-size: 4rem; display: block; margin-bottom: 10px; animation: bounce 1s infinite; }
+      body {
+        font-family: "BIZ UDPGothic", "Helvetica Neue", sans-serif;
+        background-color: var(--bg);
+        color: var(--text);
+        padding-top: 30px;
+        padding-bottom: 50px;
+      }
       
-      @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
-      @keyframes popIn { from { transform: scale(0.8); opacity:0; } to { transform: scale(1); opacity:1; } }
-      @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+      ruby { ruby-position: over; }
+      rt { font-size: 0.6em; color: #555; font-weight: normal; }
+
+      .container { 
+        max-width: 650px; 
+        background: var(--card-bg); 
+        padding: 40px; 
+        border-radius: 12px; 
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05); 
+        border: 1px solid #e1e4e8; 
+      }
+      
+      header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #f0f0f0; padding-bottom: 20px; }
+      h1 { color: #2c3e50; font-weight: 700; margin-bottom: 10px; font-size: 1.8rem; letter-spacing: 0.05em; }
+      .subtitle { color: #666; font-size: 0.95rem; }
+      
+      .form-group { margin-bottom: 25px; }
+      
+      label.input-label { 
+        font-weight: 700; color: #2c3e50; font-size: 1rem; margin-bottom: 8px; 
+        display: block; border-left: 4px solid var(--accent); padding-left: 10px;
+      }
+
+      input[type="text"], textarea { 
+        border: 2px solid #cbd5e0 !important; 
+        border-radius: 6px !important; 
+        padding: 12px !important; 
+        font-size: 1.1rem; 
+        color: #000000 !important; 
+        font-weight: 500;
+        background: #fff;
+        transition: 0.2s;
+        box-shadow: none !important;
+      }
+      input[type="text"]::placeholder, textarea::placeholder { color: #888; font-weight: normal; }
+      input[type="text"]:focus, textarea:focus { 
+        border-color: var(--accent) !important; 
+        background: #fff;
+        box-shadow: 0 0 0 4px rgba(52,152,219,0.2) !important; 
+      }
+      
+      .tag-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 10px; }
+      .tag-radio { display: none; }
+      .tag-label {
+        display: flex; align-items: center; justify-content: center;
+        background: #f8f9fa; border: 1px solid #ddd; border-radius: 8px;
+        padding: 12px; cursor: pointer; transition: 0.2s;
+        font-weight: bold; color: #444; font-size: 0.95rem; text-align: center;
+      }
+      .tag-label:hover { background: #e9ecef; }
+      .tag-radio:checked + .tag-label {
+        background: var(--accent); color: white; border-color: var(--accent);
+        box-shadow: 0 4px 10px rgba(52,152,219,0.3); transform: translateY(-2px);
+      }
+      .tag-radio:checked + .tag-label rt { color: rgba(255,255,255,0.9); }
+      
+      .file-drop-area {
+        border: 2px dashed #cbd5e0; border-radius: 8px; padding: 20px; text-align: center;
+        background: #f8f9fa; transition: 0.2s; cursor: pointer;
+      }
+      .file-drop-area:hover { background: #fff; border-color: var(--accent); }
+      input[type="file"] { margin-top: 5px; }
+
+      button[type="submit"] { 
+        background-color: #2c3e50; border: none; border-radius: 8px; font-weight: bold; font-size: 1.1rem; 
+        padding: 16px; margin-top: 30px; width: 100%; color: white;
+        box-shadow: 0 4px 10px rgba(44, 62, 80, 0.2); transition: all 0.2s;
+      }
+      button[type="submit"]:hover { background-color: #34495e; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(44, 62, 80, 0.3); }
+      button[type="submit"]:active { transform: translateY(0); box-shadow: none; }
+      button[type="submit"]:disabled { background-color: #95a5a6; cursor: not-allowed; transform: none; box-shadow: none; }
+
+      .admin-link {
+        display: inline-block; color: #7f8c8d; text-decoration: none; font-size: 0.9rem;
+        padding: 10px 20px; border: 1px solid #cbd5e0; border-radius: 6px; background: white; transition: 0.2s; cursor: pointer;
+      }
+      .admin-link:hover { background: #f1f3f5; color: #2c3e50; border-color: #b0b8c1; }
+
+      #success-overlay {
+        display: none; position: fixed; top:0; left:0; width:100%; height:100%; 
+        background: rgba(255,255,255,0.98); z-index: 1000;
+        flex-direction: column; align-items: center; justify-content: center; text-align: center;
+      }
+      .checkmark-circle {
+        width: 100px; height: 100px; border-radius: 50%; background: #2ecc71;
+        display: flex; align-items: center; justify-content: center; margin-bottom: 20px;
+        animation: scaleIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+      .checkmark { color: white; font-size: 50px; }
+      .success-title { font-size: 1.8rem; color: #2c3e50; font-weight: bold; margin-bottom: 10px; }
+      .success-sub { font-size: 1rem; color: #7f8c8d; }
+      @keyframes scaleIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
     </style>
   </head>
   <body>
-    <div class="container">
-      <h1>📰 クラス新聞 記者投稿ポスト</h1>
-      <p style="text-align:center; font-size:0.9rem; color:#666;">特ダネを見つけて、みんなに教えよう！</p>
-      
-      <form id="articleForm" onsubmit="submitForm(event)">
-        <label>📝 記者名（あなたの名前）<input type="text" name="reporterName" required placeholder="例：山田 たろう"></label>
-        
-        <!-- 追加: タグ選択プルダウン -->
-        <label>🏷️ タグ（えらんでね）
-          <select name="tag" id="tagSelect">
-            <option value="">（選択しない）</option>
-            <option disabled>読み込み中...</option>
-          </select>
-        </label>
-        
-        <label>📢 記事のタイトル<input type="text" name="title" required placeholder="例：給食のカレーが大人気！"></label>
-        <label>📖 記事の内容<textarea name="body" rows="6" required placeholder="いつ、どこで、だれが、どうしたかな？"></textarea></label>
-        <label>📷 写真（1枚だけ）<input type="file" name="imageFile" accept="image/*"></label>
-        
-        <button type="submit" class="btn-send" id="submitBtn">📮 記事をポストに入れる！</button>
-        <div id="loader" class="loader"><div class="spinner"></div>記事を届けています...</div>
-      </form>
-      <div style="text-align:center; margin-top:30px; font-size:0.8rem;">
-        <a href="<?= ScriptApp.getService().getUrl() ?>?p=admin" target="_top">🔧 先生用編集室へ</a>
-      </div>
-    </div>
+    <main class="container">
+      <header>
+        <h1>📰 デジタル・クラス<ruby>新<rt>しん</rt>聞<rt>ぶん</rt>社<rt>しゃ</rt></ruby></h1>
+        <div class="subtitle"><ruby>記<rt>き</rt>者<rt>しゃ</rt></ruby>ページ</div>
+      </header>
 
-    <div id="successModal" class="modal-overlay">
-      <div class="modal-content">
-        <span class="emoji">🎉</span>
-        <h2 style="color:#2e7d32; margin-bottom:10px;">送信完了！</h2>
-        <p id="successMsg" style="font-weight:bold; color:#555; margin-bottom:20px;"></p>
-        <button onclick="closeModal()" style="background:#00acc1; color:white; border:none; padding:10px 30px; border-radius:30px; font-weight:bold; font-size:1.1rem; cursor:pointer;">OK!</button>
+      <form id="articleForm" onsubmit="submitForm(event)">
+        
+        <div class="form-group">
+          <label class="input-label" for="title">① <ruby>記<rt>き</rt>事<rt>じ</rt></ruby>のタイトル</label>
+          <input type="text" id="title" name="title" placeholder="例：運動会で練習の成果を出せたよ" required>
+        </div>
+
+        <div class="form-group">
+          <label class="input-label" for="body">② <ruby>本<rt>ほん</rt>文<rt>ぶん</rt></ruby> (<ruby>内<rt>ない</rt>容<rt>よう</rt></ruby>)</label>
+          <textarea id="body" name="body" rows="6" placeholder="いつ、どこで、だれが、なにをしたかな？ くわしく書いてみよう。" required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="input-label" for="reporter">③ <ruby>記<rt>き</rt>者<rt>しゃ</rt></ruby>の<ruby>名<rt>な</rt>前<rt>まえ</rt></ruby></label>
+          <input type="text" id="reporter" name="reporter" placeholder="自分の名前を入力" required>
+        </div>
+
+        <div class="form-group">
+          <label class="input-label">④ タグ (<ruby>種<rt>しゅ</rt>類<rt>るい</rt></ruby>)</label>
+          <div class="tag-grid" id="tag-container">
+            <div style="grid-column: 1/-1; text-align:center; color:#999;">読み込み中...</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="input-label" for="image">⑤ <ruby>写<rt>しゃ</rt>真<rt>しん</rt></ruby> (<ruby>撮<rt>と</rt></ruby>ったもの)</label>
+          <div class="file-drop-area">
+            <input type="file" id="image" name="image" accept="image/*">
+            <p style="margin: 5px 0 0; font-size: 0.8rem; color: #888;">ここをタップして写真を選んでね</p>
+          </div>
+        </div>
+
+        <button type="submit" id="submitBtn"><ruby>送<rt>そう</rt>信<rt>しん</rt></ruby>する</button>
+      </form>
+
+      <div style="margin-top: 50px; text-align: center; border-top: 1px solid #eee; padding-top: 25px;">
+        <a href="<?= ScriptApp.getService().getUrl() ?>?p=admin" class="admin-link">編集ページへ</a>
       </div>
+    </main>
+
+    <div id="success-overlay">
+      <div class="checkmark-circle"><span class="checkmark">✔</span></div>
+      <div class="success-title"><ruby>送<rt>そう</rt>信<rt>しん</rt></ruby><ruby>完<rt>かん</rt>了<rt>りょう</rt></ruby>！</div>
+      <div class="success-sub"><ruby>先<rt>せん</rt>生<rt>せい</rt></ruby>のパソコンに<ruby>届<rt>とど</rt></ruby>きました。<br>3<ruby>秒<rt>びょう</rt></ruby><ruby>後<rt>ご</rt></ruby>に<ruby>戻<rt>もど</rt></ruby>ります。</div>
     </div>
 
     <script>
-      // 画面読み込み時にタグリストを取得してプルダウンに入れる
       window.onload = function() {
         google.script.run.withSuccessHandler(tags => {
-          const select = document.getElementById('tagSelect');
-          // 一旦リセット
-          select.innerHTML = '<option value="">（選択しない）</option>';
-          
-          tags.forEach(tag => {
-            const option = document.createElement('option');
-            option.value = tag;
-            option.text = tag;
-            select.add(option);
+          const container = document.getElementById('tag-container');
+          container.innerHTML = '';
+          if(!tags || tags.length === 0) {
+            container.innerHTML = '<div style="grid-column:1/-1; color:red;">タグ設定がありません</div>';
+            return;
+          }
+          tags.forEach((t, i) => {
+            const label = document.createElement('label');
+            const requiredAttr = i === 0 ? 'required' : ''; 
+            let rubyHtml = t.name;
+            if(t.ruby) { rubyHtml = `<ruby>${t.name}<rt>${t.ruby}</rt></ruby>`; }
+            label.innerHTML = `
+              <input type="radio" class="tag-radio" name="tag" value="${t.name}" ${requiredAttr}>
+              <div class="tag-label">
+                <span style="margin-right:5px; font-size:1.2em;">${t.icon}</span> ${rubyHtml}
+              </div>`;
+            container.appendChild(label);
           });
-        }).getSchoolTags();
+        }).getTagsSettings();
       };
 
+      // ★ 堅牢な送信処理 (リトライ機能付き)
       function submitForm(e) {
         e.preventDefault();
         const btn = document.getElementById('submitBtn');
-        const loader = document.getElementById('loader');
+        const originalText = btn.innerHTML;
         
         btn.disabled = true;
-        btn.innerText = "送信中...";
-        loader.style.display = 'block';
+        btn.innerHTML = '⏳ <ruby>送<rt>そう</rt>信<rt>しん</rt></ruby><ruby>中<rt>ちゅう</rt></ruby>...';
 
-        google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onFailure).saveArticle(document.getElementById('articleForm'));
-      }
-
-      function onSuccess() {
-        const messages = ["すごい！いい記事だね！", "ありがとう！助かるよ！", "そのニュース、知らなかった！", "記者としての才能があるね！", "みんな喜ぶよ！"];
-        document.getElementById('successMsg').innerText = messages[Math.floor(Math.random() * messages.length)];
-        document.getElementById('articleForm').reset();
+        const form = document.getElementById('articleForm');
         
-        resetButton();
-        document.getElementById('successModal').style.display = 'block';
-      }
+        // タグ取得
+        const tagRadios = document.getElementsByName('tag');
+        let selectedTag = "";
+        for (const radio of tagRadios) { if (radio.checked) { selectedTag = radio.value; break; } }
 
-      function onFailure(e) {
-        alert('エラーが発生しました: ' + e.message);
-        resetButton();
-      }
+        const fileInput = document.getElementById('image');
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        
+        reader.onloadend = function() {
+          const data = {
+            title: form.title.value,
+            body: form.body.value,
+            reporter: form.reporter.value,
+            tag: selectedTag,
+            image: reader.result ? reader.result.split(',')[1] : null,
+            mimeType: file ? file.type : null
+          };
 
-      function resetButton() {
-        const btn = document.getElementById('submitBtn');
-        btn.disabled = false;
-        btn.innerText = "📮 記事をポストに入れる！";
-        document.getElementById('loader').style.display = 'none';
-      }
+          // リトライ機能付き送信 (最大3回試行)
+          trySend(data, 0);
+        };
 
-      function closeModal() {
-        document.getElementById('successModal').style.display = 'none';
+        if (file) { reader.readAsDataURL(file); } else { reader.onloadend(); }
+
+        // 再帰的なリトライ処理
+        function trySend(data, attempt) {
+          google.script.run
+            .withSuccessHandler(() => {
+              // 成功時
+              const overlay = document.getElementById('success-overlay');
+              overlay.style.display = 'flex';
+              setTimeout(() => {
+                form.reset();
+                overlay.style.display = 'none';
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+              }, 3000);
+            })
+            .withFailureHandler((error) => {
+              // 失敗時: 同時実行制限などの場合はリトライ
+              if (attempt < 3) {
+                // 待ち時間を少しずつ増やす (2秒, 4秒, 6秒...)
+                const waitTime = (attempt + 1) * 2000;
+                btn.innerHTML = `⏳ 混雑中...待機(${attempt+1}/3)`;
+                setTimeout(() => {
+                  trySend(data, attempt + 1);
+                }, waitTime);
+              } else {
+                // 諦める
+                alert('送信に失敗しました。\nしばらく待ってからもう一度押してください。\n' + error);
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+              }
+            })
+            .saveArticle(data);
+        }
       }
     </script>
   </body>
