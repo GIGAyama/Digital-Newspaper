@@ -1,119 +1,226 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
   <head>
     <base target="_top">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>新聞編集室 Professional Ver.7.0</title>
-    <!-- フォント読み込み -->
-    <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;700&family=Noto+Sans+JP:wght@400;700&family=Yomogi&family=Kiwi+Maru:wght@400;500&family=Potta+One&display=swap" rel="stylesheet">
+    <title>新聞編集室 Professional Ver.1.0</title>
     
+    <!-- 外部ライブラリ & フォント -->
+    <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;700&family=Noto+Sans+JP:wght@400;700&family=Yomogi&family=Kiwi+Maru:wght@400;500&family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    
+    <!-- 印刷用動的スタイル -->
     <style id="dynamic-print-style"></style>
 
     <style>
-      /* --- 基本設定 --- */
-      body { font-family: "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 20px; background: #333; color: #333; }
-      
-      /* --- ヘッダー --- */
-      .top-bar { background: #2c3e50; padding: 12px 20px; border-radius: 8px 8px 0 0; display: flex; gap: 15px; align-items: center; color: white; flex-wrap: wrap; }
-      .bar-title { font-weight: bold; font-size: 1.1rem; margin-right: auto; }
-      .top-btn { background: #34495e; color: white; border: 1px solid #7f8c8d; padding: 6px 15px; border-radius: 4px; cursor: pointer; font-size: 0.9rem; transition:0.2s; white-space: nowrap; }
-      .top-btn:hover { background: #455a64; }
-      .btn-save { background: #27ae60; border-color: #2ecc71; }
-      .btn-load { background: #e67e22; border-color: #d35400; }
-      .btn-template { background: #8e44ad; border-color: #9b59b6; margin-left: 10px; } /* New Template Btn */
+      /* =========================================
+         1. グローバル設定 & CSS変数 (Variables)
+         ========================================= */
+      :root {
+        /* UI Colors */
+        --bg-color: #f0f2f5;
+        --text-color: #333;
+        --primary-color: #2c3e50;
+        --secondary-color: #3498db;
+        --accent-color-ui: #e74c3c;
+        --success-color: #27ae60;
+        --warning-color: #f39c12;
+        
+        /* Font Settings */
+        --base-font: "BIZ UDPGothic", "Helvetica Neue", Arial, sans-serif;
+        
+        /* Paper Layout Variables (Default) */
+        --paper-bg: white;
+        --paper-text: #111;
+        --paper-border: none;
+        --layout-accent: #333;
+        --paper-padding: 12mm;
+        --base-font-size: 12px;
+        --col-base-px: 200px;
+        --global-img-scale: 0.96;
+      }
 
-      /* --- 管理パネル --- */
-      .admin-panel { background: #f5f5f5; padding: 20px; border-radius: 0 0 12px 12px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-      .config-section { display: flex; gap: 20px; flex-wrap: wrap; }
-      .config-col { flex: 1; min-width: 260px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-      .config-col h3 { margin-top: 0; font-size: 1rem; color: #007bff; border-bottom: 2px solid #e0e0e0; padding-bottom: 8px; margin-bottom: 12px; }
+      body { font-family: var(--base-font); margin: 0; padding: 20px; background: var(--bg-color); color: var(--text-color); transition: background 0.3s; }
 
-      .control-group { margin-bottom: 12px; }
-      .control-group label { font-weight: bold; font-size: 0.85rem; display: block; margin-bottom: 4px; color: #555; }
-      input[type="range"], select, input[type="text"] { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+      /* =========================================
+         2. ヘッダー & ナビゲーション (Header)
+         ========================================= */
+      .top-bar { 
+        background: linear-gradient(135deg, #2c3e50, #34495e); 
+        padding: 15px 25px; border-radius: 12px 12px 0 0; 
+        display: flex; gap: 15px; align-items: center; color: white; flex-wrap: wrap; 
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      }
+      .bar-title { font-weight: 700; font-size: 1.3rem; margin-right: auto; display: flex; align-items: center; gap: 10px; text-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+      .logo-icon { font-size: 1.5rem; }
       
-      .action-btn { width: 100%; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: white; margin-top: 8px; }
-      .btn-print { background: #2e7d32; box-shadow: 0 3px 0 #1b5e20; }
-      .btn-print:active { transform: translateY(3px); box-shadow: none; }
-      .btn-free { background: #8e44ad; margin-bottom: 10px; font-size: 0.9rem;} 
-      .btn-refresh { background: #1976d2; color: white; border: none; padding: 4px 8px; font-size: 0.8rem; border-radius: 3px; cursor: pointer; margin-left: 10px;}
+      .top-btn { 
+        background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.2); 
+        padding: 8px 18px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; 
+        transition: all 0.2s ease; white-space: nowrap; backdrop-filter: blur(5px);
+        display: inline-flex; align-items: center; gap: 6px; font-weight: bold;
+      }
+      .top-btn:hover { background: rgba(255,255,255,0.25); transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+      .top-btn:active { transform: translateY(1px); box-shadow: none; }
+      
+      /* ボタン色分け */
+      .btn-save { border-color: var(--success-color); background: rgba(39, 174, 96, 0.4); }
+      .btn-load { border-color: #d35400; background: rgba(211, 84, 0, 0.4); }
+      .btn-template { border-color: #8e44ad; background: rgba(142, 68, 173, 0.4); }
+      .btn-tags { border-color: var(--secondary-color); background: rgba(52, 152, 219, 0.4); }
 
-      /* --- 記事リストエリア --- */
-      .article-list { max-height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 5px; background: #fafafa; border-radius: 4px; }
-      .article-item { background: white; border-bottom: 1px solid #eee; padding: 10px; margin-bottom: 5px; border-radius: 4px; transition: 0.2s; border-left: 4px solid transparent; }
-      .article-item.selected { border-left-color: #2ecc71; background: #f0fff4; }
-      .article-item.is-free { border-left-color: #9b59b6; background: #fdf2ff; }
+      /* =========================================
+         3. 管理パネル (Admin Panel)
+         ========================================= */
+      .admin-panel { 
+        background: white; padding: 25px; border-radius: 0 0 12px 12px; margin-bottom: 25px; 
+        box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; border-top: none;
+      }
+      .config-section { display: flex; gap: 25px; flex-wrap: wrap; }
+      .config-col { 
+        flex: 1; min-width: 280px; background: #f8f9fa; padding: 20px; border-radius: 10px; 
+        box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05); transition: 0.3s;
+      }
+      .config-col:hover { background: #fff; box-shadow: 0 5px 15px rgba(0,0,0,0.08); }
       
-      .item-main { display: flex; align-items: center; margin-bottom: 8px; }
-      .item-tag-row { display:flex; align-items:center; gap:5px; margin-top:5px; margin-bottom:5px; } /* New Tag Row */
-      .tag-input { font-size: 0.75rem; padding: 2px 5px; border: 1px solid #ddd; border-radius: 3px; width: 100px; color: #666; }
+      .config-col h3 { 
+        margin-top: 0; font-size: 1.05rem; color: #444; border-bottom: 2px solid #e0e0e0; 
+        padding-bottom: 10px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;
+      }
+
+      .control-group { margin-bottom: 15px; }
+      .control-group label { font-weight: bold; font-size: 0.85rem; display: block; margin-bottom: 6px; color: #555; }
+      input[type="range"], select, input[type="text"], input[type="date"] { 
+        width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; 
+        box-sizing: border-box; font-size: 0.9rem; transition: 0.2s; background: white;
+      }
+      select:focus, input:focus { border-color: var(--secondary-color); outline: none; box-shadow: 0 0 0 3px rgba(52,152,219,0.15); }
+      
+      .action-btn { 
+        width: 100%; padding: 12px; border: none; border-radius: 8px; cursor: pointer; 
+        font-weight: bold; color: white; margin-top: 10px; transition: 0.2s;
+        display: flex; justify-content: center; align-items: center; gap: 8px;
+      }
+      .btn-print { background: linear-gradient(to bottom, #2ecc71, #27ae60); box-shadow: 0 4px 0 #1e8449; text-shadow: 0 1px 1px rgba(0,0,0,0.2); font-size: 1.1rem; }
+      .btn-print:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #1e8449; }
+      .btn-free { background: #9b59b6; margin-bottom: 15px; font-size: 0.95rem; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+      .btn-refresh { 
+        background: var(--secondary-color); color: white; border: none; padding: 4px 10px; font-size: 0.8rem; 
+        border-radius: 4px; cursor: pointer; margin-left: auto; transition: 0.2s;
+      }
+
+      /* =========================================
+         4. 記事リスト (Article List)
+         ========================================= */
+      .article-list { 
+        max-height: 450px; overflow-y: auto; border: 1px solid #e1e4e8; padding: 8px; 
+        background: #fff; border-radius: 8px; scrollbar-width: thin;
+      }
+      .article-item { 
+        background: white; border: 1px solid #eee; padding: 12px; margin-bottom: 8px; 
+        border-radius: 8px; transition: all 0.2s ease; border-left: 5px solid transparent; 
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+      }
+      .article-item:hover { transform: translateX(2px); box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
+      .article-item.selected { border-left-color: var(--success-color); background: #f6fffa; border-color: #c3e6cb; }
+      .article-item.is-free { border-left-color: #9b59b6; background: #fdf2ff; border-color: #e2d1eb; }
+      
+      .item-main { display: flex; align-items: center; margin-bottom: 10px; }
+      .item-tag-row { display:flex; align-items:center; gap:10px; margin-top:8px; margin-bottom:5px; flex-wrap: wrap; }
+      .input-wrapper { display: flex; align-items: center; gap: 6px; background: #f1f3f5; padding: 4px 8px; border-radius: 20px; }
+      .tag-input { font-size: 0.8rem; padding: 4px 8px; border: none; background: transparent; width: 80px; color: #555; }
+      .qr-input { font-size: 0.8rem; padding: 4px 8px; border: none; background: transparent; width: 140px; color: var(--secondary-color); }
       
       .item-settings { 
-        margin-left: 20px; display: flex; gap: 8px; flex-wrap: wrap; 
-        background: #f8f9fa; padding: 5px; border-radius: 4px; border: 1px solid #eee;
+        margin-left: 0; margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap; 
+        background: #f8f9fa; padding: 8px 12px; border-radius: 6px; border: 1px solid #eee; align-items: center;
       }
-      .item-settings label { font-size: 0.75rem; color: #666; display: flex; align-items: center; gap: 3px; }
-      .item-settings select { width: auto; font-size: 0.75rem; padding: 2px 5px; height: 24px; border: 1px solid #ccc; background: white; }
+      .item-settings select { width: auto; font-size: 0.8rem; padding: 3px 6px; height: 28px; border: 1px solid #ccc; background: white; border-radius: 4px; }
 
-      /* --- プレビュー (新聞紙面) --- */
-      #paper-area { background: white; margin: 0 auto; padding: 12mm; box-shadow: 0 0 30px rgba(0,0,0,0.5); box-sizing: border-box; overflow: hidden; position: relative; }
-      
-      /* フォントクラス定義 */
-      .font-mincho { font-family: "Shippori Mincho", "Hiragino Mincho ProN", serif !important; }
+      /* =========================================
+         5. 紙面プレビュー (Newspaper Preview)
+         ========================================= */
+      #paper-area { 
+        background-color: var(--paper-bg); color: var(--paper-text); border: var(--paper-border);
+        margin: 0 auto; padding: var(--paper-padding); 
+        box-shadow: 0 10px 40px rgba(0,0,0,0.2); 
+        box-sizing: border-box; overflow: hidden; position: relative; 
+        transition: background-color 0.3s, color 0.3s;
+        /* 背景画像設定 */
+        background-image: var(--paper-bg-image); background-size: var(--paper-bg-size); background-position: var(--paper-bg-pos); background-repeat: var(--paper-bg-repeat);
+        /* 印刷設定 */
+        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+      }
+
+      /* テーマクラス */
+      .theme-default { --paper-bg: white; }
+      .theme-spring { --paper-bg: #fff0f5; --paper-text: #5d4037; --paper-border: 6px double #f8bbd0; --layout-accent: #ec407a; --paper-bg-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='%23f48fb1' d='M50 50 Q70 20 90 50 Q70 80 50 50 Q30 80 10 50 Q30 20 50 50'/%3E%3Ccircle cx='50' cy='50' r='10' fill='%23fce4ec'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='%23f06292' d='M50 50 Q70 20 90 50 Q70 80 50 50 Q30 80 10 50 Q30 20 50 50'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='%23f48fb1' d='M50 50 Q70 20 90 50 Q70 80 50 50 Q30 80 10 50 Q30 20 50 50'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='%23f06292' d='M50 50 Q70 20 90 50 Q70 80 50 50 Q30 80 10 50 Q30 20 50 50'/%3E%3C/svg%3E"); --paper-bg-size: 60px 60px, 50px 50px, 60px 60px, 50px 50px; --paper-bg-pos: top 10px left 10px, top 10px right 10px, bottom 10px right 10px, bottom 10px left 10px; --paper-bg-repeat: no-repeat; }
+      .theme-summer { --paper-bg: #e1f5fe; --paper-text: #01579b; --paper-border: 4px solid #4fc3f7; --layout-accent: #0288d1; --paper-bg-image: radial-gradient(circle at 50% 100%, #81d4fa 45%, transparent 50%), radial-gradient(circle at 50% 0%, #ffeb3b 40%, #ffc107 50%, transparent 60%); --paper-bg-size: 40px 20px, 120px 120px; --paper-bg-pos: bottom left, -40px -40px; --paper-bg-repeat: repeat-x, no-repeat; }
+      .theme-autumn { --paper-bg: #fffde7; --paper-text: #3e2723; --paper-border: 8px solid transparent; --layout-accent: #d84315; border-image: repeating-linear-gradient(45deg, #ffab91 0, #ffab91 10px, #ffccbc 10px, #ffccbc 20px) 10; --paper-bg-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='%23ff5722' d='M50 10 L60 40 L90 30 L70 60 L90 80 L60 70 L50 100 L40 70 L10 80 L30 60 L10 30 L40 40 Z'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='%23ffb300' d='M50 90 L50 60 Q80 10 20 10 Q60 10 50 60'/%3E%3C/svg%3E"); --paper-bg-size: 50px 50px, 40px 40px; --paper-bg-pos: top left, bottom right; --paper-bg-repeat: no-repeat; }
+      .theme-winter { --paper-bg: #fafafa; --paper-text: #455a64; --paper-border: 4px solid #cfd8dc; --layout-accent: #607d8b; --paper-bg-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath stroke='%2390a4ae' stroke-width='3' d='M50 0 L50 100 M0 50 L100 50 M15 15 L85 85 M15 85 L85 15'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle fill='%23b0bec5' cx='50' cy='50' r='5'/%3E%3Cpath stroke='%23b0bec5' stroke-width='2' d='M50 20 L50 80 M20 50 L80 50'/%3E%3C/svg%3E"); --paper-bg-size: 60px 60px, 30px 30px; --paper-bg-pos: 20px 20px, 60px 50px; --paper-bg-repeat: repeat-x; }
+      .theme-blackboard { --paper-bg: #2e4d3a; --paper-text: #fff; --paper-border: 12px ridge #795548; --layout-accent: #ffeb3b; background-image: radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px); background-size: 20px 20px; }
+      .theme-frame { --paper-bg: white; --paper-text: #000; --paper-border: 4px solid #000; --paper-padding: 15mm; --layout-accent: #000; border-radius: 4px; box-shadow: inset 0 0 0 2px white, inset 0 0 0 6px #000; }
+
+      /* フォントクラス */
+      .font-mincho { font-family: "Shippori Mincho", serif !important; }
       .font-gothic { font-family: "Noto Sans JP", sans-serif !important; }
+      .font-ud { font-family: "UD Digital Kyokasho-tai-R", "UD デジタル教科書体 R-R", "BIZ UDPGothic", sans-serif !important; }
       .font-yomogi { font-family: "Yomogi", cursive !important; }
       .font-kiwi { font-family: "Kiwi Maru", serif !important; }
-      .font-potta { font-family: "Potta One", cursive !important; }
 
+      /* 紙面構成要素 */
       .page-a4-v { width: 210mm; height: 297mm; } .page-a4-h { width: 297mm; height: 210mm; }
-      
-      .newspaper-header { text-align: center; border-bottom: 4px double #333; margin-bottom: 15px; padding-bottom: 10px; height: 10%; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; }
+      .newspaper-header { text-align: center; border-bottom: 4px double var(--layout-accent); margin-bottom: 15px; padding-bottom: 10px; height: 10%; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; color: var(--paper-text); }
       .newspaper-title { font-size: 3rem; margin: 0; line-height: 1; letter-spacing: 0.1em; outline: none; }
       .newspaper-date { text-align: right; font-size: 0.9rem; margin-top: 10px; outline: none; }
-
       .articles-container { width: 100%; height: 88%; }
-      :root { --base-font-size: 12px; --col-base-px: 200px; --global-img-scale: 0.96; }
-
-      .article-box { 
-        margin-bottom: 15px; padding: 8px; font-size: var(--base-font-size); text-align: justify; 
-        break-inside: auto; overflow: visible; position: relative;
-        max-width: 100%; box-sizing: border-box; min-height: 2em;
-      }
+      .article-box { margin-bottom: 15px; padding: 8px; font-size: var(--base-font-size); text-align: justify; break-inside: auto; overflow: visible; position: relative; max-width: 100%; box-sizing: border-box; min-height: 2em; color: var(--paper-text); }
       .article-box::after { content: ""; display: block; clear: both; }
-
-      .article-title, .article-img-wrapper, .article-meta { break-inside: avoid; }
+      .article-title, .article-img-wrapper, .article-meta, .qr-container { break-inside: avoid; }
       
-      [contenteditable="true"]:hover { background-color: rgba(255, 235, 59, 0.2); outline: 1px dashed #ccc; cursor: text; }
-      [contenteditable="true"]:focus { background-color: rgba(255, 235, 59, 0.4); outline: 2px solid #007bff; }
+      /* 編集可能エリアのハイライト */
+      [contenteditable="true"]:hover { background-color: rgba(255, 235, 59, 0.2); outline: 1px dashed #ccc; cursor: text; border-radius: 4px; }
+      [contenteditable="true"]:focus { background-color: rgba(255, 235, 59, 0.3); outline: 2px solid var(--secondary-color); border-radius: 4px; }
+      
+      /* 記事タイトルスタイル */
+      .article-title { font-weight: 700; font-size: 1.5em; line-height: 1.3; margin-bottom: 6px; display: block; color: var(--paper-text); }
+      .title-normal .article-title { border-bottom: 2px solid var(--layout-accent); }
+      .title-outline .article-title { color: var(--paper-bg); text-shadow: 1px 1px 0 var(--paper-text), -1px -1px 0 var(--paper-text), 1px -1px 0 var(--paper-text), -1px 1px 0 var(--paper-text); border-bottom: 4px solid var(--paper-text); padding: 2px 5px; }
+      .title-solid .article-title { background: var(--paper-text); color: var(--paper-bg); padding: 4px 10px; border-radius: 3px; }
+      .title-double .article-title { border-bottom: 3px double var(--layout-accent); padding-bottom: 2px; }
+      .title-leftbar .article-title { border-left: 6px solid var(--layout-accent); padding-left: 10px; border-bottom: 1px solid rgba(0,0,0,0.1); }
+      .title-marker .article-title { background: linear-gradient(transparent 60%, rgba(255, 235, 59, 0.5) 60%); padding: 0 5px; display: inline; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+      /* 黒板モード特例 */
+      .theme-blackboard .title-marker .article-title { background: linear-gradient(transparent 60%, rgba(255, 255, 255, 0.3) 60%); }
+      .theme-blackboard .title-outline .article-title { text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff; color: #264d36; border-color: #fff; }
 
-      .article-title { font-weight: 700; font-size: 1.5em; line-height: 1.3; margin-bottom: 6px; display: block; }
-      .title-normal .article-title { border-bottom: 2px solid #333; }
-      .title-outline .article-title { color: white; text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000; border-bottom: 4px solid #000; padding: 2px 5px; }
-      .title-solid .article-title { background: #000; color: #fff; padding: 4px 10px; border-radius: 3px; }
-      .title-double .article-title { border-bottom: 3px double #333; padding-bottom: 2px; }
-      .title-leftbar .article-title { border-left: 6px solid #333; padding-left: 10px; border-bottom: 1px solid #ccc; }
-      .title-marker .article-title { background: linear-gradient(transparent 60%, #ffecb3 60%); padding: 0 5px; display: inline; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
-
-      .article-meta { font-size: 0.8em; color: #555; margin-bottom: 5px; text-align: right; display: block; }
+      .article-meta { font-size: 0.8em; color: var(--paper-text); opacity: 0.8; margin-bottom: 5px; text-align: right; display: block; }
       .article-body { line-height: 1.7; white-space: pre-wrap; font-size: 1em; overflow-wrap: break-word; }
-
-      .article-img-wrapper { writing-mode: horizontal-tb; display: block; margin: 5px auto 8px auto; max-width: 100% !important; box-sizing: border-box; overflow: hidden; border: 1px solid #ccc; }
+      .article-img-wrapper { writing-mode: horizontal-tb; display: block; margin: 5px auto 8px auto; max-width: 100% !important; box-sizing: border-box; overflow: hidden; border: 1px solid #ccc; background: white; border-radius: 2px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
       .article-img-wrapper img { width: 100%; height: 100%; display: block; object-fit: var(--local-fit, cover); object-position: center; }
       .img-float-left { float: left; margin: 0 10px 5px 0; max-width: 50% !important; }
       .img-float-right { float: right; margin: 0 0 5px 10px; max-width: 50% !important; }
+      .qr-container { display: inline-block; background: white; padding: 4px; border: 1px solid #ccc; margin-top: 5px; margin-left: 10px; text-align: center; vertical-align: top; border-radius: 4px; }
+      .qr-container canvas { display: block; }
+      .qr-container .qr-label { font-size: 8px; color: #333; margin-top: 2px; line-height: 1; font-family: sans-serif; font-weight: bold; letter-spacing: 0.05em; }
 
+      /* 縦書きモード */
       .vertical-mode { writing-mode: vertical-rl; text-orientation: upright; column-fill: auto; }
-      .vertical-mode .article-box { border-left: 1px solid #ddd; padding-left: 10px; margin-left: 10px; margin-bottom: 0; border-bottom: none !important; padding-bottom: 0; }
+      .vertical-mode .article-box { border-left: 1px solid rgba(0,0,0,0.1); padding-left: 10px; margin-left: 10px; margin-bottom: 0; border-bottom: none !important; padding-bottom: 0; }
       .vertical-mode .article-title { margin-left: 10px; margin-bottom: 0; }
-      .vertical-mode.title-normal .article-title { border-bottom: none; border-left: 2px solid #333; padding-left: 5px; }
-      .vertical-mode.title-outline .article-title { border-left: 4px solid #000; border-bottom: none; }
+      .vertical-mode.title-normal .article-title { border-bottom: none; border-left: 2px solid var(--layout-accent); padding-left: 5px; }
+      .vertical-mode.title-outline .article-title { border-left: 4px solid var(--paper-text); border-bottom: none; }
       .vertical-mode.title-solid .article-title { border-left: none; }
-      .vertical-mode.title-double .article-title { border-bottom: none; border-left: 3px double #333; padding-left: 5px; }
-      .vertical-mode.title-leftbar .article-title { border-left: none; border-top: 6px solid #333; padding-top: 10px; border-bottom: none; border-right: 1px solid #ccc; padding-right:10px; }
-      .vertical-mode.title-marker .article-title { background: linear-gradient(to left, transparent 60%, #ffecb3 60%); }
+      .vertical-mode.title-double .article-title { border-bottom: none; border-left: 3px double var(--layout-accent); padding-left: 5px; }
+      .vertical-mode.title-leftbar .article-title { border-left: none; border-top: 6px solid var(--layout-accent); padding-top: 10px; border-bottom: none; border-right: 1px solid rgba(0,0,0,0.1); padding-right:10px; }
+      .vertical-mode.title-marker .article-title { background: linear-gradient(to left, transparent 60%, rgba(255, 235, 59, 0.5) 60%); }
+      .theme-blackboard .vertical-mode.title-marker .article-title { background: linear-gradient(to left, transparent 60%, rgba(255, 255, 255, 0.3) 60%); }
       .vertical-mode .img-float-left { float: left; margin: 0 0 10px 10px; }
       .vertical-mode .img-float-right { float: right; margin: 10px 0 10px 0; }
+      .vertical-mode .qr-container { margin-left: 0; margin-bottom: 5px; margin-right: 5px; writing-mode: horizontal-tb; }
 
+      /* 段組みクラス */
       .cols-1 { column-count: 1; } 
       .cols-2 { column-count: 2; column-gap: 30px; column-rule: 1px solid #ccc; }
       .cols-3 { column-count: 3; column-gap: 20px; column-rule: 1px solid #ccc; } 
@@ -121,38 +228,70 @@
 
       @media print {
         body { margin: 0; padding: 0; background: white; }
-        .top-bar, .admin-panel, .modal-overlay { display: none !important; }
-        #paper-area { box-shadow: none; margin: 0 !important; padding: 10mm !important; overflow: hidden; page-break-after: avoid; }
+        .top-bar, .admin-panel, .modal-overlay, .toast-container { display: none !important; }
+        #paper-area { box-shadow: none; margin: 0 !important; overflow: hidden; page-break-after: avoid; }
       }
       
-      /* モーダル */
-      .modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center; }
-      .modal-box { background: white; padding: 20px; border-radius: 10px; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
-      .modal-header { font-weight: bold; font-size: 1.2rem; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-      .modal-body { margin-bottom: 20px; }
-      .modal-footer { text-align: right; display: flex; gap: 10px; justify-content: flex-end; }
-      .modal-btn { padding: 8px 15px; border-radius: 4px; border: none; cursor: pointer; font-weight: bold; }
-      .btn-cancel { background: #ccc; color: #333; }
-      .btn-confirm { background: #007bff; color: white; }
-      .btn-load-template { background: #8e44ad; color: white; }
+      /* =========================================
+         6. UIコンポーネント (Modals & Toasts)
+         ========================================= */
+      .modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(3px); opacity: 0; transition: opacity 0.3s; }
+      .modal-overlay.show { opacity: 1; }
+      .modal-box { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 450px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+      .modal-overlay.show .modal-box { transform: scale(1); }
+      
+      .modal-header { font-weight: 700; font-size: 1.25rem; margin-bottom: 15px; border-bottom: 2px solid #f1f1f1; padding-bottom: 12px; color: var(--primary-color); }
+      .modal-body { margin-bottom: 25px; font-size: 0.95rem; line-height: 1.6; color: #555; }
+      .modal-footer { text-align: right; display: flex; gap: 12px; justify-content: flex-end; }
+      .modal-btn { padding: 10px 20px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; font-size: 0.9rem; }
+      .btn-cancel { background: #e0e0e0; color: #555; }
+      .btn-cancel:hover { background: #d0d0d0; }
+      .btn-confirm { background: var(--secondary-color); color: white; box-shadow: 0 2px 5px rgba(52,152,219,0.3); }
+      .btn-confirm:hover { background: #2980b9; transform: translateY(-1px); }
+      .btn-danger { background: var(--accent-color-ui); color: white; }
+      .btn-danger:hover { background: #c0392b; }
+
+      .toast-container { position: fixed; bottom: 30px; right: 30px; z-index: 3000; display: flex; flex-direction: column; gap: 10px; }
+      .toast { 
+        background: #333; color: white; padding: 15px 25px; border-radius: 8px; 
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2); font-weight: bold; 
+        display: flex; align-items: center; gap: 10px; 
+        transform: translateX(120%); transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        max-width: 300px;
+      }
+      .toast.show { transform: translateX(0); }
+      .toast-success { background: var(--success-color); }
+      .toast-error { background: var(--accent-color-ui); }
+      .toast-info { background: var(--secondary-color); }
+      .toast-icon { font-size: 1.2rem; }
+
+      /* タグ管理リスト */
+      .tag-manage-list { max-height: 300px; overflow-y: auto; border: 1px solid #eee; border-radius: 6px; padding: 5px; margin-bottom: 15px; }
+      .tag-row { display: flex; gap: 5px; align-items: center; margin-bottom: 5px; border-bottom: 1px solid #f9f9f9; padding-bottom: 5px; }
+      .tag-row input { padding: 5px; font-size: 0.85rem; border: 1px solid #ddd; border-radius: 4px; }
+
     </style>
   </head>
   <body>
 
+    <!-- トースト通知コンテナ -->
+    <div id="toast-container" class="toast-container"></div>
+
     <div class="top-bar">
-      <span class="bar-title">📰 編集室 Ver.7.0</span>
-      <button class="top-btn btn-save" onclick="openSaveModal()">一時保存</button>
-      <button class="top-btn btn-load" onclick="openLoadModal()">呼出</button>
-      <button class="top-btn btn-template" onclick="openTemplateModal()">デザインテンプレート</button> <!-- New -->
+      <span class="bar-title"><span class="logo-icon">📰</span> 新聞編集室 <span style="font-size:0.7em; opacity:0.8; font-weight:normal; margin-left:5px;">Professional Ver.1.0</span></span>
+      <button class="top-btn btn-save" onclick="openSaveModal()">💾 一時保存</button>
+      <button class="top-btn btn-load" onclick="openLoadModal()">📂 呼出</button>
+      <button class="top-btn btn-template" onclick="openTemplateModal()">🎨 テンプレート</button>
+      <button class="top-btn btn-tags" onclick="openTagsModal()">🏷️ タグ設定</button>
       <div style="flex:1;"></div>
-      <a href="<?= ScriptApp.getService().getUrl() ?>" class="top-btn" target="_top">← 投稿画面へ</a>
+      <a href="<?= ScriptApp.getService().getUrl() ?>" class="top-btn" target="_top">📝 投稿画面へ</a>
     </div>
 
     <div class="admin-panel">
       <div class="config-section">
         
         <div class="config-col">
-          <h3>1. レイアウト</h3>
+          <h3>📐 レイアウト設定</h3>
           <div class="control-group"><label>用紙向き</label>
             <select id="paperOri" onchange="updateLayout()"><option value="v">縦 (A4)</option><option value="h">横 (A4)</option></select>
           </div>
@@ -163,20 +302,32 @@
             <select id="colCount" onchange="updateLayout()"><option value="1">1段</option><option value="2">2段</option><option value="3" selected>3段</option><option value="4">4段</option></select>
           </div>
           <div class="control-group">
-            <label>文字サイズ <span id="val-fontSize" style="font-weight:normal; color:#007bff; font-size:0.9em; margin-left:5px;">12px</span></label>
+            <label>文字サイズ <span id="val-fontSize" style="font-weight:normal; color:var(--secondary-color); font-size:0.9em; margin-left:5px;">12px</span></label>
             <input type="range" id="fontSizeRange" min="8" max="24" value="12" step="0.5" oninput="updateStyles()">
           </div>
         </div>
 
         <div class="config-col">
-          <h3>2. デザイン設定</h3>
+          <h3>🎨 デザイン装飾</h3>
+          <div class="control-group"><label>テーマ (背景・枠)</label>
+            <select id="themeSelect" onchange="updateLayout()">
+              <option value="default">標準 (白)</option>
+              <option value="spring">🌸 春 (桜フレーム)</option>
+              <option value="summer">🌻 夏 (海と向日葵)</option>
+              <option value="autumn">🍁 秋 (紅葉狩り)</option>
+              <option value="winter">⛄ 冬 (雪の結晶)</option>
+              <option value="blackboard">🏫 黒板 (チョーク風)</option>
+              <option value="frame">🔳 シンプル枠</option>
+            </select>
+          </div>
+
           <div class="control-group"><label>フォント</label>
             <select id="fontFamily" onchange="updateLayout()">
               <option value="mincho">新聞明朝</option>
               <option value="gothic">ゴシック</option>
+              <option value="ud">UD教科書体 (読みやすい)</option>
               <option value="yomogi">よもぎ (手書き)</option>
               <option value="kiwi">キウイ丸 (手書き)</option>
-              <option value="potta">ポッタ (太文字手書き)</option>
             </select>
           </div>
           <div class="control-group"><label>見出しスタイル</label>
@@ -189,10 +340,10 @@
               <option value="marker">マーカー</option>
             </select>
           </div>
-          <div class="control-group"><label>写真の初期サイズ</label>
+          <div class="control-group"><label>画像サイズ初期値</label>
             <select id="imgSizeSelect" onchange="updateStyles()"><option value="0.96" selected>全幅 (大)</option><option value="0.7">普通</option><option value="0.4">小</option></select>
           </div>
-          <div class="control-group"><label>写真の初期形状</label>
+          <div class="control-group"><label>画像形状初期値</label>
             <select id="imgShapeSelect" onchange="updateStyles()">
               <option value="auto">そのまま (元)</option><option value="1/1">正方形</option><option value="3/4">縦長</option><option value="16/9">横長</option>
             </select>
@@ -200,20 +351,29 @@
         </div>
 
         <div class="config-col" style="flex: 1.5;">
-          <h3>3. 記事編集 <button class="btn-refresh" onclick="loadArticles()">データ更新</button></h3>
-          <button class="action-btn btn-free" onclick="openFreeModal()">＋ 自由記述欄を追加</button>
+          <h3>🗞️ 記事編集 <button class="btn-refresh" onclick="loadArticles()">🔄 更新</button></h3>
+          <button class="action-btn btn-free" onclick="openFreeModal()">➕ 自由記述欄を追加</button>
 
-          <div class="filter-box" style="background:#e3f2fd; padding:10px; border-radius:6px; margin-bottom:10px;">
-            <div style="display:flex; gap:10px; margin-bottom:5px;">
-              <input type="text" id="searchInput" placeholder="🔍 検索..." oninput="refreshListAndPaper()" style="flex:1;">
-              <!-- New Filter Select -->
+          <div class="filter-box" style="background:#e3f2fd; padding:10px; border-radius:8px; margin-bottom:12px; box-shadow:inset 0 1px 3px rgba(0,0,0,0.05);">
+            <!-- フィルター -->
+            <div style="display:flex; gap:10px; margin-bottom:8px;">
+              <input type="text" id="searchInput" placeholder="🔍 キーワード検索..." oninput="refreshListAndPaper()" style="flex:1;">
               <select id="tagFilter" onchange="refreshListAndPaper()" style="flex:1;">
-                <option value="">全てのタグ</option>
+                <option value="">🏷️ 全てのタグ</option>
               </select>
             </div>
-            <div style="display:flex; justify-content:space-between; font-size:0.85rem;">
-              <label><input type="checkbox" id="showSelectedOnly" onchange="refreshListAndPaper()"> 選択中のみ</label>
-              <label><input type="checkbox" id="enableDrag" onchange="toggleDrag()"> ✋ 並替ON</label>
+            
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:0.85rem; background:white; padding:6px 10px; border-radius:6px; border:1px solid #ddd;">
+              <span style="color:var(--secondary-color); font-size:1.1rem;">📅</span>
+              <input type="date" id="dateFrom" onchange="refreshListAndPaper()" style="border:none; color:#555; width:auto; flex:1;">
+              <span style="color:#aaa;">～</span>
+              <input type="date" id="dateTo" onchange="refreshListAndPaper()" style="border:none; color:#555; width:auto; flex:1;">
+              <button onclick="clearDateFilter()" style="font-size:0.75rem; background:#f0f0f0; border:none; padding:4px 10px; border-radius:15px; cursor:pointer; color:#666; font-weight:bold;">クリア</button>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; font-size:0.85rem; padding: 0 5px;">
+              <label style="cursor:pointer; display:flex; align-items:center; gap:5px;"><input type="checkbox" id="showSelectedOnly" onchange="refreshListAndPaper()"> ✅ 選択中のみ表示</label>
+              <label style="cursor:pointer; display:flex; align-items:center; gap:5px;"><input type="checkbox" id="enableDrag" onchange="toggleDrag()"> ✋ 並び替えモード</label>
             </div>
           </div>
           
@@ -233,30 +393,119 @@
     </div>
 
     <!-- モーダル群 -->
-    <div id="freeModal" class="modal-overlay"><div class="modal-box"><div class="modal-header">自由記述欄</div><div class="modal-body"><label>見出し<input type="text" id="freeTitle" value="編集後記"></label><br><br><label>本文<textarea id="freeBody" rows="5" style="width:100%;"></textarea></label></div><div class="modal-footer"><button class="modal-btn btn-cancel" onclick="closeModal('freeModal')">キャンセル</button><button class="modal-btn btn-confirm" onclick="addFreeArticle()">追加</button></div></div></div>
-    <div id="saveModal" class="modal-overlay"><div class="modal-box"><div class="modal-header">状態保存 (記事込み)</div><div class="modal-body"><input type="text" id="saveName" placeholder="保存名"></div><div class="modal-footer"><button class="modal-btn btn-cancel" onclick="closeModal('saveModal')">キャンセル</button><button class="modal-btn btn-confirm" onclick="executeSave()">保存</button></div></div></div>
-    <div id="loadModal" class="modal-overlay"><div class="modal-box"><div class="modal-header">読込 (記事込み)</div><div class="modal-body"><select id="loadSelect" style="width:100%; padding:10px;"></select></div><div class="modal-footer"><button class="modal-btn btn-cancel" onclick="closeModal('loadModal')">キャンセル</button><button class="modal-btn btn-confirm" onclick="executeLoad()">復元</button></div></div></div>
-    <!-- New Template Modal -->
+    
+    <!-- 汎用確認モーダル -->
+    <div id="confirmModal" class="modal-overlay">
+      <div class="modal-box">
+        <div class="modal-header" id="confirmTitle">確認</div>
+        <div class="modal-body" id="confirmMessage"></div>
+        <div class="modal-footer">
+          <button class="modal-btn btn-cancel" onclick="closeModal('confirmModal')">キャンセル</button>
+          <button class="modal-btn btn-danger" id="confirmActionBtn">実行</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- タグ設定モーダル -->
+    <div id="tagsModal" class="modal-overlay">
+      <div class="modal-box" style="max-width: 500px;">
+        <div class="modal-header">タグ設定の管理</div>
+        <div class="modal-body">
+          <p style="font-size:0.85rem; color:#666;">記者画面に表示されるタグを設定します。<br>アイコン(絵文字)、名前(漢字)、ふりがなを入力してください。</p>
+          <div id="tagListContainer" class="tag-manage-list"></div>
+          <button onclick="addTagRow()" style="width:100%; padding:8px; background:#f0f0f0; border:1px dashed #ccc; border-radius:4px; cursor:pointer; font-weight:bold; color:#555;">＋ タグを追加</button>
+        </div>
+        <div class="modal-footer">
+          <button class="modal-btn btn-cancel" onclick="closeModal('tagsModal')">キャンセル</button>
+          <button class="modal-btn btn-confirm" onclick="executeSaveTags()">設定を保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 自由記述追加モーダル -->
+    <div id="freeModal" class="modal-overlay">
+      <div class="modal-box">
+        <div class="modal-header">自由記述欄の追加</div>
+        <div class="modal-body">
+          <label>見出し<input type="text" id="freeTitle" value="編集後記"></label><br>
+          <label>記者名<input type="text" id="freeReporter" value="編集部"></label><br>
+          <label>本文<textarea id="freeBody" rows="5" style="width:100%; border:1px solid #ddd; border-radius:6px; padding:8px;"></textarea></label>
+        </div>
+        <div class="modal-footer">
+          <button class="modal-btn btn-cancel" onclick="closeModal('freeModal')">キャンセル</button>
+          <button class="modal-btn btn-confirm" onclick="addFreeArticle()">追加</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 保存モーダル -->
+    <div id="saveModal" class="modal-overlay">
+      <div class="modal-box">
+        <div class="modal-header">現在の状態を保存</div>
+        <div class="modal-body">
+          <p style="margin-top:0;">記事の選択状態、編集内容、レイアウト設定を保存します。</p>
+          <input type="text" id="saveName" placeholder="保存名 (例: 1学期号_編集中)" style="width:100%;">
+        </div>
+        <div class="modal-footer">
+          <button class="modal-btn btn-cancel" onclick="closeModal('saveModal')">キャンセル</button>
+          <button class="modal-btn btn-confirm" onclick="executeSave()">保存する</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 呼出モーダル -->
+    <div id="loadModal" class="modal-overlay">
+      <div class="modal-box">
+        <div class="modal-header">保存データを呼び出し</div>
+        <div class="modal-body">
+          <select id="loadSelect" style="width:100%; padding:10px;"></select>
+        </div>
+        <div class="modal-footer">
+          <button class="modal-btn btn-cancel" onclick="closeModal('loadModal')">キャンセル</button>
+          <button class="modal-btn btn-confirm" onclick="executeLoad()">復元する</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- テンプレートモーダル -->
     <div id="templateModal" class="modal-overlay">
       <div class="modal-box">
         <div class="modal-header">デザインテンプレート</div>
         <div class="modal-body">
-          <p style="font-size:0.85rem; color:#555;">現在の「レイアウト設定」と「デザイン設定」を保存します。<br>※記事の内容は保存されません。</p>
-          <hr style="border:none; border-top:1px solid #eee; margin:10px 0;">
-          <label>💾 新規保存<br><input type="text" id="templateName" placeholder="例: 朝の会用レイアウト" style="width:70%; display:inline-block;"> <button onclick="executeSaveTemplate()" style="padding:6px; background:#27ae60; color:white; border:none; border-radius:4px; cursor:pointer;">保存</button></label>
-          <hr style="border:none; border-top:1px solid #eee; margin:15px 0;">
-          <label>📂 テンプレート呼出<br>
-            <select id="templateSelect" style="width:70%; display:inline-block;"></select> <button onclick="executeLoadTemplate()" style="padding:6px; background:#e67e22; color:white; border:none; border-radius:4px; cursor:pointer;">適用</button>
-          </label>
+          <p style="font-size:0.9rem; color:#666; margin-top:0;">レイアウト設定とデザイン設定のみを保存・適用します。<br>※記事の内容は変わりません。</p>
+          
+          <div style="background:#f9f9f9; padding:15px; border-radius:8px; border:1px solid #eee; margin-bottom:15px;">
+            <label style="margin-bottom:8px;">💾 設定を新規保存</label>
+            <div style="display:flex; gap:8px;">
+              <input type="text" id="templateName" placeholder="例: 黒板スタイル" style="flex:1;"> 
+              <button onclick="executeSaveTemplate()" style="padding:6px 12px; background:var(--success-color); color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">保存</button>
+            </div>
+          </div>
+          
+          <div style="background:#f9f9f9; padding:15px; border-radius:8px; border:1px solid #eee;">
+            <label style="margin-bottom:8px;">📂 設定を適用</label>
+            <div style="display:flex; gap:8px;">
+              <select id="templateSelect" style="flex:1;"></select> 
+              <button onclick="executeLoadTemplate()" style="padding:6px 12px; background:#e67e22; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">適用</button>
+            </div>
+          </div>
         </div>
-        <div class="modal-footer"><button class="modal-btn btn-cancel" onclick="closeModal('templateModal')">閉じる</button></div>
+        <div class="modal-footer">
+          <button class="modal-btn btn-cancel" onclick="closeModal('templateModal')">閉じる</button>
+        </div>
       </div>
     </div>
 
+    <!-- JavaScriptロジック -->
     <script>
+      // グローバル変数
       let allArticles = [], freeArticles = [], articleStates = {}, customOrder = [];
       let editedContent = {}; 
+      let editingTags = [];
 
+      // ==========================================
+      // 1. 初期化・ロード処理 (Init & Load)
+      // ==========================================
       window.onload = function() {
         const now = new Date();
         document.querySelector('.newspaper-date').innerText = `${now.getFullYear()}年 ${now.getMonth()+1}月 ${now.getDate()}日 発行`;
@@ -267,37 +516,27 @@
         document.getElementById('articleList').innerText = '通信中...';
         google.script.run.withSuccessHandler(data => {
           allArticles = data;
+          // 初期状態設定
           allArticles.forEach((art, i) => {
             if (!articleStates[art.id]) {
-              articleStates[art.id] = { checked: i < 3, imgPos: 'top', imgSize: 'default', imgShape: 'default' };
+              articleStates[art.id] = { checked: i < 3, imgPos: 'top', imgSize: 'default', imgShape: 'default', qrUrl: '', showTitle: true };
             }
           });
-          updateTagFilterOptions(); // タグ一覧更新
+          updateTagFilterOptions(); 
           refreshListAndPaper();
-        }).withFailureHandler(e => alert("読み込みエラー: " + e)).getArticles();
+        }).withFailureHandler(e => showToast("読み込みエラー: " + e, 'error')).getArticles();
       }
 
-      function updateTagFilterOptions() {
-        const select = document.getElementById('tagFilter');
-        const currentVal = select.value;
-        select.innerHTML = '<option value="">全てのタグ</option>';
-        
-        // ユニークなタグを抽出
-        const tags = new Set();
-        allArticles.forEach(a => { if(a.tag) tags.add(a.tag); });
-        
-        tags.forEach(t => {
-          const opt = document.createElement('option');
-          opt.value = t;
-          opt.text = `🏷️ ${t}`;
-          select.add(opt);
-        });
-        select.value = currentVal;
-      }
-
+      // ==========================================
+      // 2. 表示・レンダリング (Render)
+      // ==========================================
+      
+      // 記事リストと紙面の再描画
       function refreshListAndPaper() {
         try {
           let combined = [...freeArticles, ...allArticles];
+          
+          // カスタムオーダー適用
           if (customOrder.length > 0) {
             let ordered = [], others = [];
             customOrder.forEach(id => { const f = combined.find(a => a.id === id); if(f) ordered.push(f); });
@@ -305,20 +544,31 @@
             combined = [...ordered, ...others];
           }
           
+          // フィルタリング条件
           const query = document.getElementById('searchInput').value.toLowerCase();
-          const tagFilter = document.getElementById('tagFilter').value; // タグフィルタ
+          const tagFilter = document.getElementById('tagFilter').value;
           const showSelected = document.getElementById('showSelectedOnly').checked;
+          const dateFromVal = document.getElementById('dateFrom').value;
+          const dateToVal = document.getElementById('dateTo').value;
+          
+          let fromTime = 0, toTime = Infinity;
+          if (dateFromVal) fromTime = new Date(dateFromVal + 'T00:00:00').getTime();
+          if (dateToVal) { const d = new Date(dateToVal + 'T00:00:00'); d.setDate(d.getDate() + 1); toTime = d.getTime(); }
+
           const listDiv = document.getElementById('articleList');
           listDiv.innerHTML = '';
           const draggable = document.getElementById('enableDrag').checked;
           if(draggable) listDiv.classList.add('drag-enabled'); else listDiv.classList.remove('drag-enabled');
 
+          // リスト生成ループ
           combined.forEach(art => {
             const state = articleStates[art.id] || {};
-            // フィルタリング処理
+            
+            // フィルタ適用
             if (showSelected && !state.checked) return;
             if (query && !(art.title+art.reporterName).toLowerCase().includes(query)) return;
-            if (tagFilter && art.tag !== tagFilter && !art.isFree) return; // 自由記述はタグフィルタ無視(あるいは独自のタグを持たせるか)
+            if (tagFilter && art.tag !== tagFilter && !art.isFree) return;
+            if (!art.isFree && art.timestamp) { if (art.timestamp < fromTime || art.timestamp >= toTime) return; }
 
             const div = document.createElement('div');
             div.className = 'article-item' + (state.checked ? ' selected' : '') + (art.isFree ? ' is-free' : '');
@@ -327,54 +577,39 @@
 
             const isDefSz = state.imgSize === 'default';
             const isDefSh = state.imgShape === 'default';
+            const isShowTitle = state.showTitle !== false;
 
             div.innerHTML = `
               <div class="item-main">
-                <span class="drag-handle" style="margin-right:8px; color:#ccc;">☰</span>
-                <label style="cursor:pointer; flex:1;"><input type="checkbox" onchange="updateState('${art.id}','checked',this.checked)" ${state.checked?'checked':''}> <strong>${art.title}</strong></label>
-                ${art.isFree ? `<button onclick="deleteFree('${art.id}')">🗑️</button>` : ''}
+                <span class="drag-handle" style="margin-right:10px; color:#ccc; cursor:${draggable ? 'grab' : 'default'};">☰</span>
+                <label style="cursor:pointer; flex:1; display:flex; align-items:center; gap:8px;">
+                  <input type="checkbox" onchange="updateState('${art.id}','checked',this.checked)" ${state.checked?'checked':''} style="width:auto;"> 
+                  <span style="font-weight:bold; font-size:1rem;">${art.title}</span> <span style="font-size:0.8rem; color:#777;">(${art.reporterName})</span>
+                </label>
+                ${art.isFree ? `<button onclick="confirmDeleteFree('${art.id}')" style="background:none; border:none; cursor:pointer; font-size:1.1rem;" title="削除">🗑️</button>` : ''}
               </div>
-              <!-- タグ入力欄 (New) -->
               ${!art.isFree ? `
               <div class="item-tag-row">
-                 <span style="font-size:0.75rem; color:#666;">🏷️</span>
-                 <input type="text" class="tag-input" value="${art.tag||''}" placeholder="タグ(行事など)" onchange="updateArticleTag('${art.id}', this.value)">
-              </div>` : ''}
-              
+                 <div class="input-wrapper"><span style="font-size:0.8rem;">🏷️</span><input type="text" class="tag-input" value="${art.tag||''}" placeholder="タグ" onchange="updateArticleTag('${art.id}', this.value)"></div>
+                 <div class="input-wrapper"><span style="font-size:0.8rem;">🔗</span><input type="text" class="qr-input" value="${state.qrUrl||''}" placeholder="動画等のURL(QR化)" oninput="updateState('${art.id}','qrUrl', this.value)"></div>
+              </div>` : `<div class="item-tag-row"><div class="input-wrapper"><span style="font-size:0.8rem;">🔗</span><input type="text" class="qr-input" value="${state.qrUrl||''}" placeholder="動画等のURL(QR化)" oninput="updateState('${art.id}','qrUrl', this.value)"></div></div>`}
               ${state.checked && art.imageUrl ? `
               <div class="item-settings">
-                 <label>配置: <select onchange="updateState('${art.id}','imgPos',this.value)"><option value="top" ${state.imgPos=='top'?'selected':''}>上</option><option value="float-left" ${state.imgPos=='float-left'?'selected':''}>左回込</option><option value="float-right" ${state.imgPos=='float-right'?'selected':''}>右回込</option><option value="bottom" ${state.imgPos=='bottom'?'selected':''}>下</option></select></label>
-                 <label>大さ: <select onchange="updateState('${art.id}','imgSize',this.value)"><option value="default" ${isDefSz?'selected':''}>標準</option><option value="0.96" ${state.imgSize=='0.96'?'selected':''}>大</option><option value="0.7" ${state.imgSize=='0.7'?'selected':''}>中</option><option value="0.4" ${state.imgSize=='0.4'?'selected':''}>小</option></select></label>
-                 <label>形: <select onchange="updateState('${art.id}','imgShape',this.value)"><option value="default" ${isDefSh?'selected':''}>標準</option><option value="auto" ${state.imgShape=='auto'?'selected':''}>元</option><option value="1/1" ${state.imgShape=='1/1'?'selected':''}>正方</option><option value="16/9" ${state.imgShape=='16/9'?'selected':''}>横長</option><option value="3/4" ${state.imgShape=='3/4'?'selected':''}>縦長</option></select></label>
-              </div>
-              ` : ''}`;
+                 <label>配置 <select onchange="updateState('${art.id}','imgPos',this.value)"><option value="top" ${state.imgPos=='top'?'selected':''}>上</option><option value="float-left" ${state.imgPos=='float-left'?'selected':''}>左回込</option><option value="float-right" ${state.imgPos=='float-right'?'selected':''}>右回込</option><option value="bottom" ${state.imgPos=='bottom'?'selected':''}>下</option></select></label>
+                 <label>大 <select onchange="updateState('${art.id}','imgSize',this.value)"><option value="default" ${isDefSz?'selected':''}>標準</option><option value="0.96" ${state.imgSize=='0.96'?'selected':''}>大</option><option value="0.7" ${state.imgSize=='0.7'?'selected':''}>中</option><option value="0.4" ${state.imgSize=='0.4'?'selected':''}>小</option></select></label>
+                 <label>形 <select onchange="updateState('${art.id}','imgShape',this.value)"><option value="default" ${isDefSh?'selected':''}>標準</option><option value="auto" ${state.imgShape=='auto'?'selected':''}>元</option><option value="1/1" ${state.imgShape=='1/1'?'selected':''}>正方</option><option value="16/9" ${state.imgShape=='16/9'?'selected':''}>横長</option><option value="3/4" ${state.imgShape=='3/4'?'selected':''}>縦長</option></select></label>
+                 <label style="margin-left:auto; border-left:1px solid #ccc; padding-left:10px;"><input type="checkbox" onchange="updateState('${art.id}','showTitle', !this.checked)" ${!isShowTitle?'checked':''} style="width:auto;"> 見出し隠す</label>
+              </div>` : ''}`;
             listDiv.appendChild(div);
           });
 
+          // 紙面レンダリング実行
           renderPaper(combined.filter(a => (articleStates[a.id]||{}).checked));
         
         } catch(e) { console.error(e); }
       }
 
-      function updateArticleTag(id, val) {
-        // ローカルデータを更新
-        const art = allArticles.find(a => a.id === id);
-        if(art) {
-          art.tag = val;
-          // サーバーへ保存
-          google.script.run.withSuccessHandler(()=>{
-            updateTagFilterOptions(); // プルダウン更新
-            // console.log('Tag saved');
-          }).updateArticleTag(id, val);
-        }
-      }
-
-      function updateState(id, k, v) { 
-        if(!articleStates[id]) articleStates[id]={}; 
-        articleStates[id][k]=v; 
-        refreshListAndPaper(); 
-      }
-
+      // 紙面のHTML構築
       function renderPaper(list) {
         const container = document.getElementById('articlesContainer');
         container.innerHTML = '';
@@ -387,6 +622,7 @@
             const box = document.createElement('div');
             box.className = 'article-box';
             
+            // 画像
             let imgHtml = '';
             if (art.imageUrl) {
                const imScale = (state.imgSize && state.imgSize !== 'default') ? state.imgSize : globalScale;
@@ -402,29 +638,46 @@
                imgHtml = `<div class="${cls}" style="${style}"><img src="${art.imageUrl}" referrerpolicy="no-referrer"></div>`;
             }
 
+            // QR
+            let qrHtml = '';
+            if (state.qrUrl && state.qrUrl.startsWith('http')) {
+              const qrId = 'qr_' + art.id;
+              qrHtml = `<div class="qr-container"><canvas id="${qrId}"></canvas><div class="qr-label">LINK</div></div>`;
+              setTimeout(() => {
+                const canvas = document.getElementById(qrId);
+                if (canvas) {
+                  new QRious({ element: canvas, value: state.qrUrl, size: 50, level: 'L' });
+                }
+              }, 0);
+            }
+
+            // テキスト編集内容の反映
             const edits = editedContent[art.id] || {};
             const titleText = edits.title !== undefined ? edits.title : art.title;
             const reporterText = edits.reporter !== undefined ? edits.reporter : art.reporterName;
             const bodyText = edits.body !== undefined ? edits.body : art.body;
             const safeId = art.id.replace(/['"\\]/g, ''); 
+            const showTitle = state.showTitle !== false; 
 
-            const h = `<div class="article-title" contenteditable="true" onblur="saveEdit('${safeId}', 'title', this.innerText)">${titleText}</div>
-                       <div class="article-meta" contenteditable="true" onblur="saveEdit('${safeId}', 'reporter', this.innerText)">${reporterText}</div>`;
+            // コンテンツ組み立て
+            let h = '';
+            if (showTitle) {
+               h = `<div class="article-title" contenteditable="true" onblur="saveEdit('${safeId}', 'title', this.innerText)">${titleText}</div>
+                    <div class="article-meta" contenteditable="true" onblur="saveEdit('${safeId}', 'reporter', this.innerText)">${reporterText}</div>`;
+            }
             const b = `<div class="article-body" contenteditable="true" onblur="saveEdit('${safeId}', 'body', this.innerText)">${bodyText}</div>`;
             
-            if (state.imgPos === 'bottom') box.innerHTML = h + b + imgHtml;
-            else if (state.imgPos === 'float-left' || state.imgPos === 'float-right') box.innerHTML = h + imgHtml + b;
-            else box.innerHTML = h + imgHtml + b;
+            let content = '';
+            // 画像配置による分岐
+            if (state.imgPos === 'bottom') content = h + b + qrHtml + imgHtml;
+            else if (state.imgPos === 'float-left' || state.imgPos === 'float-right') content = h + imgHtml + b + qrHtml;
+            else content = h + imgHtml + b + qrHtml;
             
+            box.innerHTML = content;
             container.appendChild(box);
           } catch (e) { console.error("Render error for article " + art.id, e); }
         });
         updateLayout();
-      }
-
-      function saveEdit(id, field, value) {
-        if (!editedContent[id]) editedContent[id] = {};
-        editedContent[id][field] = value;
       }
 
       function updateLayout() {
@@ -432,9 +685,10 @@
         const dir = document.getElementById('textDir').value;
         const col = parseInt(document.getElementById('colCount').value);
         const font = document.getElementById('fontFamily').value;
+        const theme = document.getElementById('themeSelect').value; 
         
         const paper = document.getElementById('paper-area');
-        paper.className = (ori==='h'?'page-a4-h':'page-a4-v') + ' font-' + font;
+        paper.className = (ori==='h'?'page-a4-h':'page-a4-v') + ' font-' + font + ' theme-' + theme;
         
         const cont = document.getElementById('articlesContainer');
         cont.className = 'articles-container cols-' + col + (dir==='vertical'?' vertical-mode':'');
@@ -443,6 +697,7 @@
 
         document.getElementById('dynamic-print-style').innerHTML = ori==='h' ? '@page{size:A4 landscape;margin:0}' : '@page{size:A4 portrait;margin:0}';
 
+        // 段組み計算用
         const mmToPx = 3.78;
         const padding = 24 * mmToPx; 
         const paperW = (ori === 'h' ? 297 : 210) * mmToPx;
@@ -451,111 +706,113 @@
         document.documentElement.style.setProperty('--col-base-px', colWidth + 'px');
       }
 
+      // ==========================================
+      // 3. UIアクション & ヘルパー (Actions)
+      // ==========================================
+
       function updateStyles() {
         const root = document.documentElement;
         const v = document.getElementById('fontSizeRange').value;
         root.style.setProperty('--base-font-size', v + 'px');
         document.getElementById('val-fontSize').innerText = v + 'px';
+        renderPaper(getDisplayedArticles());
+      }
+
+      function updateTagFilterOptions() {
+        const select = document.getElementById('tagFilter');
+        const currentVal = select.value;
+        select.innerHTML = '<option value="">🏷️ 全てのタグ</option>';
+        const tags = new Set();
+        allArticles.forEach(a => { if(a.tag) tags.add(a.tag); });
+        tags.forEach(t => {
+          const opt = document.createElement('option');
+          opt.value = t; opt.text = `🏷️ ${t}`;
+          select.add(opt);
+        });
+        select.value = currentVal;
+      }
+
+      function updateArticleTag(id, val) {
+        const art = allArticles.find(a => a.id === id);
+        if(art) {
+          art.tag = val;
+          google.script.run.withSuccessHandler(()=>{ updateTagFilterOptions(); }).updateArticleTag(id, val);
+        }
+      }
+
+      function updateState(id, k, v) { 
+        if(!articleStates[id]) articleStates[id]={}; 
+        articleStates[id][k]=v; 
+        if(k === 'checked' || k === 'qrUrl' || k === 'showTitle') refreshListAndPaper(); 
+        else renderPaper(getDisplayedArticles());
+      }
+
+      function saveEdit(id, field, value) {
+        if (!editedContent[id]) editedContent[id] = {};
+        editedContent[id][field] = value;
+      }
+
+      function clearDateFilter() {
+        document.getElementById('dateFrom').value = '';
+        document.getElementById('dateTo').value = '';
         refreshListAndPaper();
       }
 
-      // --- テンプレート機能 (New) ---
-      function openTemplateModal() {
-        openModal('templateModal');
-        const s = document.getElementById('templateSelect');
-        s.innerHTML = '<option>読込中...</option>';
-        google.script.run.withSuccessHandler(list => {
-          s.innerHTML = '';
-          list.forEach(item => {
-            const o = document.createElement('option');
-            o.value = item.name;
-            o.text = item.name;
-            s.add(o);
-          });
-          if(list.length === 0) s.innerHTML = '<option value="">保存されたテンプレートはありません</option>';
-        }).getTemplateList();
+      function getDisplayedArticles() {
+         let combined = [...freeArticles, ...allArticles];
+         if (customOrder.length > 0) {
+            let ordered = [], others = [];
+            customOrder.forEach(id => { const f = combined.find(a => a.id === id); if(f) ordered.push(f); });
+            combined.forEach(a => { if (!customOrder.includes(a.id)) others.push(a); });
+            combined = [...ordered, ...others];
+         }
+         return combined.filter(a => (articleStates[a.id]||{}).checked);
       }
 
-      function executeSaveTemplate() {
-        const name = document.getElementById('templateName').value;
-        if(!name) { alert('テンプレート名を入力してください'); return; }
-        
-        // 設定のみを抽出
-        const config = {
-          ori: document.getElementById('paperOri').value,
-          dir: document.getElementById('textDir').value,
-          col: document.getElementById('colCount').value,
-          fontSize: document.getElementById('fontSizeRange').value,
-          fontFamily: document.getElementById('fontFamily').value,
-          titleStyle: document.getElementById('titleStyle').value,
-          imgSize: document.getElementById('imgSizeSelect').value,
-          imgShape: document.getElementById('imgShapeSelect').value
-        };
-        
-        google.script.run.withSuccessHandler(r => {
-          alert(r.message);
-          openTemplateModal(); // リスト更新のため再表示
-        }).saveTemplate(name, JSON.stringify(config));
-      }
-
-      function executeLoadTemplate() {
-        const name = document.getElementById('templateSelect').value;
-        if(!name) return;
-        
-        google.script.run.withSuccessHandler(r => {
-          if(r.success) {
-            const c = JSON.parse(r.data);
-            if(c.ori) document.getElementById('paperOri').value = c.ori;
-            if(c.dir) document.getElementById('textDir').value = c.dir;
-            if(c.col) document.getElementById('colCount').value = c.col;
-            if(c.fontSize) { document.getElementById('fontSizeRange').value = c.fontSize; updateStyles(); }
-            if(c.fontFamily) document.getElementById('fontFamily').value = c.fontFamily;
-            if(c.titleStyle) document.getElementById('titleStyle').value = c.titleStyle;
-            if(c.imgSize) document.getElementById('imgSizeSelect').value = c.imgSize;
-            if(c.imgShape) document.getElementById('imgShapeSelect').value = c.imgShape;
-            
-            updateLayout();
-            refreshListAndPaper(); // 画像スタイルなども適用
-            closeModal('templateModal');
-            alert('テンプレート「' + name + '」を適用しました');
-          } else {
-            alert(r.message);
-          }
-        }).loadTemplate(name);
-      }
-
-      // --- 既存モーダル ---
-      function openModal(id){document.getElementById(id).style.display='flex';}
-      function closeModal(id){document.getElementById(id).style.display='none';}
-      function openFreeModal(){openModal('freeModal');}
-      function openSaveModal(){openModal('saveModal');}
-      function openLoadModal(){
-        openModal('loadModal'); const s=document.getElementById('loadSelect'); s.innerHTML='<option>読込中...</option>';
-        google.script.run.withSuccessHandler(lst=>{
-          s.innerHTML=''; 
-          lst.forEach(i=> { let o=document.createElement('option'); o.value=i.name; o.text=`${i.name} (${i.date})`; s.add(o); });
-        }).getSavedList();
-      }
-      function addFreeArticle(){
-        const t=document.getElementById('freeTitle').value; const b=document.getElementById('freeBody').value;
-        if(!t)return; const id='free_'+Date.now();
-        freeArticles.push({id:id, title:t, body:b, isFree:true, reporterName:"自由記述"});
-        articleStates[id]={checked:true, imgPos:'top', imgSize:'default', imgShape:'default'}; 
-        customOrder.unshift(id);
-        closeModal('freeModal'); refreshListAndPaper();
-      }
-      function deleteFree(id){ if(confirm('削除しますか？')){ freeArticles=freeArticles.filter(a=>a.id!==id); refreshListAndPaper(); } }
+      function toggleDrag() { refreshListAndPaper(); }
       
+      // ドラッグ&ドロップ機能
+      function addDragEvents(d) {
+        d.addEventListener('dragstart',()=>d.classList.add('dragging'));
+        d.addEventListener('dragend',()=>{
+          d.classList.remove('dragging'); 
+          customOrder=[...document.querySelectorAll('#articleList .article-item')].map(e=>e.dataset.id); 
+          refreshListAndPaper();
+        });
+        document.getElementById('articleList').addEventListener('dragover',e=>{
+          e.preventDefault(); 
+          const a=getDragAfterElement(document.getElementById('articleList'),e.clientY);
+          const dr=document.querySelector('.dragging'); 
+          if(a==null) document.getElementById('articleList').appendChild(dr); 
+          else document.getElementById('articleList').insertBefore(dr,a);
+        });
+      }
+      function getDragAfterElement(c,y){
+        return [...c.querySelectorAll('.article-item:not(.dragging)')].reduce((cl,ch)=>{
+          const b=ch.getBoundingClientRect(); 
+          const o=y-b.top-b.height/2; 
+          return (o<0 && o>cl.offset)?{offset:o,element:ch}:cl;
+        },{offset:Number.NEGATIVE_INFINITY}).element;
+      }
+
+      // ==========================================
+      // 4. データ保存・復元 (Persistence)
+      // ==========================================
+
       function executeSave(){
-        const n=document.getElementById('saveName').value; if(!n)return;
+        const n=document.getElementById('saveName').value; if(!n) { showToast('保存名を入力してください', 'error'); return; }
         const d={ free:freeArticles, state:articleStates, order:customOrder, edits: editedContent, 
           conf:{ 
             ori:document.getElementById('paperOri').value, dir:document.getElementById('textDir').value, col:document.getElementById('colCount').value,
-            titleStyle: document.getElementById('titleStyle').value, fontFamily: document.getElementById('fontFamily').value, fontSize: document.getElementById('fontSizeRange').value
+            titleStyle: document.getElementById('titleStyle').value, fontFamily: document.getElementById('fontFamily').value, fontSize: document.getElementById('fontSizeRange').value,
+            theme: document.getElementById('themeSelect').value
           } 
         };
-        google.script.run.withSuccessHandler(r=>{alert(r.message);closeModal('saveModal')}).saveLayoutState(n, JSON.stringify(d));
+        google.script.run.withSuccessHandler(r=>{
+          showToast(r.message, 'success'); closeModal('saveModal');
+        }).saveLayoutState(n, JSON.stringify(d));
       }
+
       function executeLoad(){
         const n=document.getElementById('loadSelect').value; if(!n)return;
         google.script.run.withSuccessHandler(r=>{
@@ -566,26 +823,102 @@
                if(d.conf.titleStyle) document.getElementById('titleStyle').value = d.conf.titleStyle;
                if(d.conf.fontFamily) document.getElementById('fontFamily').value = d.conf.fontFamily;
                if(d.conf.fontSize) { document.getElementById('fontSizeRange').value = d.conf.fontSize; updateStyles(); }
+               if(d.conf.theme) document.getElementById('themeSelect').value = d.conf.theme;
              }
-             refreshListAndPaper(); closeModal('loadModal'); alert('復元しました');
-           } else alert(r.message);
+             refreshListAndPaper(); closeModal('loadModal'); showToast('復元しました', 'success');
+           } else showToast(r.message, 'error');
         }).loadLayoutState(n);
       }
-      
-      function toggleDrag() { refreshListAndPaper(); }
-      function addDragEvents(d) {
-        d.addEventListener('dragstart',()=>d.classList.add('dragging'));
-        d.addEventListener('dragend',()=>{d.classList.remove('dragging'); customOrder=[...document.querySelectorAll('#articleList .article-item')].map(e=>e.dataset.id); refreshListAndPaper();});
-        document.getElementById('articleList').addEventListener('dragover',e=>{
-          e.preventDefault(); const a=getDragAfterElement(document.getElementById('articleList'),e.clientY);
-          const dr=document.querySelector('.dragging'); if(a==null) document.getElementById('articleList').appendChild(dr); else document.getElementById('articleList').insertBefore(dr,a);
+
+      function executeSaveTemplate() {
+        const name = document.getElementById('templateName').value;
+        if(!name) { showToast('テンプレート名を入力してください', 'error'); return; }
+        const config = {
+          ori: document.getElementById('paperOri').value, dir: document.getElementById('textDir').value, col: document.getElementById('colCount').value,
+          fontSize: document.getElementById('fontSizeRange').value, fontFamily: document.getElementById('fontFamily').value,
+          titleStyle: document.getElementById('titleStyle').value, imgSize: document.getElementById('imgSizeSelect').value,
+          imgShape: document.getElementById('imgShapeSelect').value, theme: document.getElementById('themeSelect').value
+        };
+        google.script.run.withSuccessHandler(r => { showToast(r.message, 'success'); openTemplateModal(); }).saveTemplate(name, JSON.stringify(config));
+      }
+
+      function executeLoadTemplate() {
+        const name = document.getElementById('templateSelect').value; if(!name) return;
+        google.script.run.withSuccessHandler(r => {
+          if(r.success) {
+            const c = JSON.parse(r.data);
+            if(c.ori) document.getElementById('paperOri').value = c.ori; if(c.dir) document.getElementById('textDir').value = c.dir;
+            if(c.col) document.getElementById('colCount').value = c.col; if(c.fontSize) { document.getElementById('fontSizeRange').value = c.fontSize; updateStyles(); }
+            if(c.fontFamily) document.getElementById('fontFamily').value = c.fontFamily; if(c.titleStyle) document.getElementById('titleStyle').value = c.titleStyle;
+            if(c.imgSize) document.getElementById('imgSizeSelect').value = c.imgSize; if(c.imgShape) document.getElementById('imgShapeSelect').value = c.imgShape;
+            if(c.theme) document.getElementById('themeSelect').value = c.theme;
+            updateLayout(); renderPaper(getDisplayedArticles()); closeModal('templateModal'); showToast('テンプレート「' + name + '」を適用しました', 'success');
+          } else { showToast(r.message, 'error'); }
+        }).loadTemplate(name);
+      }
+
+      // ==========================================
+      // 5. タグ管理 & 自由記述 (Tag & Free)
+      // ==========================================
+
+      function openTagsModal() {
+        openModal('tagsModal');
+        document.getElementById('tagListContainer').innerHTML = '読み込み中...';
+        google.script.run.withSuccessHandler(tags => { editingTags = tags; renderTagList(); }).getTagsSettings();
+      }
+      function renderTagList() {
+        const c = document.getElementById('tagListContainer'); c.innerHTML = '';
+        editingTags.forEach((t, i) => {
+          const div = document.createElement('div'); div.className = 'tag-row';
+          div.innerHTML = `
+            <input type="text" value="${t.icon}" style="width:40px; text-align:center;" placeholder="絵" onchange="updateTag(${i},'icon',this.value)">
+            <input type="text" value="${t.name}" style="flex:1;" placeholder="名前" onchange="updateTag(${i},'name',this.value)">
+            <input type="text" value="${t.ruby}" style="flex:1;" placeholder="ふりがな" onchange="updateTag(${i},'ruby',this.value)">
+            <button onclick="deleteTag(${i})" style="background:#e74c3c; color:white; border:none; border-radius:4px; padding:4px 8px; cursor:pointer;">×</button>
+          `;
+          c.appendChild(div);
         });
       }
-      function getDragAfterElement(c,y){
-        return [...c.querySelectorAll('.article-item:not(.dragging)')].reduce((cl,ch)=>{
-          const b=ch.getBoundingClientRect(); const o=y-b.top-b.height/2; return (o<0 && o>cl.offset)?{offset:o,element:ch}:cl;
-        },{offset:Number.NEGATIVE_INFINITY}).element;
+      function updateTag(idx, field, val) { editingTags[idx][field] = val; }
+      function addTagRow() { editingTags.push({icon: "🏷️", name: "", ruby: ""}); renderTagList(); }
+      function deleteTag(idx) { editingTags.splice(idx, 1); renderTagList(); }
+      function executeSaveTags() {
+        const validTags = editingTags.filter(t => t.name.trim() !== "");
+        google.script.run.withSuccessHandler(() => { showToast('タグ設定を保存しました', 'success'); closeModal('tagsModal'); }).saveTagsSettings(JSON.stringify(validTags));
       }
+
+      function addFreeArticle(){
+        const t=document.getElementById('freeTitle').value; const r=document.getElementById('freeReporter').value || "編集部"; const b=document.getElementById('freeBody').value;
+        if(!t)return; const id='free_'+Date.now();
+        freeArticles.push({id:id, title:t, body:b, isFree:true, reporterName:r});
+        articleStates[id]={checked:true, imgPos:'top', imgSize:'default', imgShape:'default', qrUrl:'', showTitle: true};
+        customOrder.unshift(id); closeModal('freeModal'); refreshListAndPaper(); showToast('自由記述欄を追加しました', 'success');
+      }
+      function confirmDeleteFree(id) {
+        document.getElementById('confirmTitle').innerText = '削除の確認'; document.getElementById('confirmMessage').innerText = 'この自由記述欄を削除してもよろしいですか？';
+        const btn = document.getElementById('confirmActionBtn');
+        btn.onclick = function() { freeArticles = freeArticles.filter(a => a.id !== id); refreshListAndPaper(); closeModal('confirmModal'); showToast('削除しました', 'info'); };
+        openModal('confirmModal');
+      }
+
+      // ==========================================
+      // 6. UIユーティリティ (UI Utils)
+      // ==========================================
+      function showToast(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div'); toast.className = `toast toast-${type}`;
+        let icon = 'ℹ️'; if (type === 'success') icon = '✅'; if (type === 'error') icon = '⚠️';
+        toast.innerHTML = `<span class="toast-icon">${icon}</span> <span>${message}</span>`;
+        container.appendChild(toast);
+        requestAnimationFrame(() => { toast.classList.add('show'); });
+        setTimeout(() => { toast.classList.remove('show'); setTimeout(() => { toast.remove(); }, 300); }, 3000);
+      }
+      function openModal(id){ const m = document.getElementById(id); m.style.display='flex'; setTimeout(()=>m.classList.add('show'), 10); }
+      function closeModal(id){ const m = document.getElementById(id); m.classList.remove('show'); setTimeout(()=>m.style.display='none', 300); }
+      function openFreeModal(){openModal('freeModal');} function openSaveModal(){openModal('saveModal');}
+      function openLoadModal(){ openModal('loadModal'); const s=document.getElementById('loadSelect'); s.innerHTML='<option>読込中...</option>'; google.script.run.withSuccessHandler(lst=>{ s.innerHTML=''; lst.forEach(i=> { let o=document.createElement('option'); o.value=i.name; o.text=`${i.name} (${i.date})`; s.add(o); }); }).getSavedList(); }
+      function openTemplateModal() { openModal('templateModal'); const s = document.getElementById('templateSelect'); s.innerHTML = '<option>読込中...</option>'; google.script.run.withSuccessHandler(list => { s.innerHTML = ''; list.forEach(item => { const o = document.createElement('option'); o.value = item.name; o.text = item.name; s.add(o); }); if(list.length === 0) s.innerHTML = '<option value="">保存されたテンプレートはありません</option>'; }).getTemplateList(); }
+
     </script>
   </body>
 </html>
