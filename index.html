@@ -3,7 +3,9 @@
   <head>
     <base target="_top">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- viewport-fit=cover は、iPad や画面に切り欠きのある端末で
+         安全領域（env(safe-area-inset-*)）を CSS から使えるようにするために要る。 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>デジタルクラス新聞社</title>
     <!-- Pico.css -->
     <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@1.5.10/css/pico.min.css">
@@ -27,7 +29,56 @@
       }
       
       ruby { ruby-position: over; }
-      rt { font-size: 0.6em; color: #555; font-weight: normal; }
+      /* ふりがな。#555 のままだと、色のついたボタンの上に重なったとき
+         比 1.47 でほとんど読めなかった（実測）。
+         色のついた面では下の文字と同じ色を継がせる。
+         ふりがなが要るのは低学年の児童なので、いちばん読めなくて困る人が
+         いちばん読めない、という形になっていた。 */
+      rt { font-size: 0.6em; color: #5f6368; font-weight: normal; }
+      /* 児童が画面を連打するので、素早い連打で勝手に拡大するのだけ止める。
+         二本指で広げる余地は残す（見えづらい子が拡大できなくなるため）。 */
+      body { touch-action: manipulation; }
+
+      /* 切り欠きのある端末やホームバーに、中身が潜り込まないようにする */
+      body {
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+
+      /* 画面いっぱいに広げるものは 100vh ではなく 100dvh を使う。
+         iPad の Safari と Android の Chrome では、アドレスバーが出入りするぶん
+         100vh が実際の表示領域より大きくなり、いちばん下のボタンが隠れて押せなくなる。 */
+      .full-viewport { height: 100dvh; }
+      @supports not (height: 100dvh) {
+        .full-viewport { height: 100vh; }
+      }
+
+      /* 動きに酔いやすい子・前庭障害のある子のための設定を尊重する */
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
+      }
+
+      /* Windows のハイコントラストモード。色で区別している境目が消えるので枠線を出す */
+      @media (forced-colors: active) {
+        button, input, textarea, select, .admin-link, .tag-label, .file-drop-area {
+          border: 1px solid ButtonText;
+        }
+      }
+
+      /* キーボードで操作しているときだけ、はっきりした枠を出す */
+      :focus-visible { outline: 3px solid #1f4e8c; outline-offset: 2px; }
+
+
+      button rt,
+      .tag-label rt,
+      .success-title rt,
+      [class*="btn"] rt { color: inherit; }
 
       .container { 
         max-width: 650px; 
@@ -85,6 +136,8 @@
       .file-drop-area {
         border: 2px dashed #cbd5e0; border-radius: 8px; padding: 20px; text-align: center;
         background: #f8f9fa; transition: 0.2s; cursor: pointer;
+        /* もとは #888 で比 3.36。1段濃くする。 */
+        color: #5f6368;
       }
       .file-drop-area:hover { background: #fff; border-color: var(--accent); }
       input[type="file"] { margin-top: 5px; }
@@ -99,7 +152,9 @@
       button[type="submit"]:disabled { background-color: #95a5a6; cursor: not-allowed; transform: none; box-shadow: none; }
 
       .admin-link {
-        display: inline-block; color: #7f8c8d; text-decoration: none; font-size: 0.9rem;
+        /* もとは #7f8c8d で比 3.48。高さも 41px しかなく 44px に届いていなかった。 */
+        display: inline-flex; align-items: center; justify-content: center;
+        min-height: 44px; color: #5a6673; text-decoration: none; font-size: 0.9rem;
         padding: 10px 20px; border: 1px solid #cbd5e0; border-radius: 6px; background: white; transition: 0.2s; cursor: pointer;
       }
       .admin-link:hover { background: #f1f3f5; color: #2c3e50; border-color: #b0b8c1; }
@@ -156,7 +211,7 @@
           <label class="input-label" for="image">⑤ <ruby>写<rt>しゃ</rt>真<rt>しん</rt></ruby> (<ruby>撮<rt>と</rt></ruby>ったもの)</label>
           <div class="file-drop-area">
             <input type="file" id="image" name="image" accept="image/*">
-            <p style="margin: 5px 0 0; font-size: 0.8rem; color: #888;">ここをタップして写真を選んでね</p>
+            <p style="margin: 5px 0 0; font-size: 0.8rem; color: #5f6368;">ここをタップして写真を選んでね</p>
           </div>
         </div>
 
@@ -180,7 +235,7 @@
           const container = document.getElementById('tag-container');
           container.innerHTML = '';
           if(!tags || tags.length === 0) {
-            container.innerHTML = '<div style="grid-column:1/-1; color:red;">タグ設定がありません</div>';
+            container.innerHTML = '<div style="grid-column:1/-1; color:#c0221f;">タグ設定がありません</div>';
             return;
           }
           tags.forEach((t, i) => {
