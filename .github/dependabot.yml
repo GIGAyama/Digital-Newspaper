@@ -1,0 +1,10 @@
+version: 2
+
+updates:
+  # GitHub Actions 自体の更新（ワークフローが使う action のバージョン）
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    labels:
+      - "dependencies"
