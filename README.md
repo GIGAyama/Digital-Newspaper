@@ -44,8 +44,11 @@ Google スプレッドシートをデータベース、Google ドライブを画
 | `Code.gs` | サーバー側。スプレッドシート／ドライブの読み書き、スプレッドシートのメニュー、`doGet` |
 | `index.html` | 児童用の投稿ページ |
 | `admin.html` | 先生用の編集室（紙面プレビューと印刷） |
-| `AUDIT.md` | アクセシビリティ点検の記録 |
+| `AUDIT.md` | 点検の記録（実測値と、測っていないものの明示） |
 | `MANUAL.md` | 操作マニュアル |
+| `scripts/check-project.mjs` | 品質ゲート。静的に読めば分かることを検査する |
+| `tests/check-project.test.mjs` | 品質ゲートそのものを、わざと壊して確かめるテスト |
+| `.github/workflows/ci.yml` | CI。`pull_request` と `push` の両方で上の2つを回す |
 
 ### 画面の切り替え
 
@@ -126,7 +129,7 @@ Google スプレッドシートをデータベース、Google ドライブを画
 - **絞り込み中も自由記述欄は常に表示されます。** タグ・日付の条件は投稿記事にだけ効きます。
 - **タグ設定を変えても、投稿済みの記事のタグ文字列は変わりません。** 記事には選択時のタグ名が文字列として残ります。
 - **QR コードにできるのは `http` で始まる URL だけです。**
-- **オフラインでは動きません。** 編集室は QR 生成ライブラリ（QRious）を CDN から読み込み、両画面とも Google Fonts を参照します。PWA 化もしていません（→ [AUDIT.md](AUDIT.md) 第5節）。
+- **オフラインでは動きません。** PWA 化していないため、`script.google.com` に接続できないと開けません（→ [AUDIT.md](AUDIT.md)）。ただし**学校のフィルタリングで CDN が塞がれても動きます**（下記）。
 - `index.html` の `.full-viewport`（`100dvh`）は CSS に定義されているだけで、現在どの要素にも付いていません。
 
 ### 同時アクセス
@@ -137,14 +140,38 @@ Google スプレッドシートをデータベース、Google ドライブを画
 
 ## 使っている外部リソース
 
-| 用途 | 読み込み先 |
-|---|---|
-| CSS フレームワーク（記者ページ） | Pico.css 1.5.10（unpkg） |
-| フォント | Google Fonts（BIZ UDPGothic / Shippori Mincho / Noto Sans JP / Yomogi / Kiwi Maru） |
-| QR コード生成（編集室） | QRious 4.0.2（cdnjs） |
+学校のネットワークは `unpkg.com` や `fonts.googleapis.com` を塞いでいることがあります。
+**塞がれても動くもの（見た目だけ）に限って、外部から読んでいます。**
+
+| 用途 | 読み込み先 | 塞がれると |
+|---|---|---|
+| CSS フレームワーク（記者ページ） | Pico.css 1.5.10（unpkg） | 字と余白が変わるだけ。入力も送信もできる（実測） |
+| フォント | Google Fonts | 端末側のフォントに落ちるだけ |
+| QR コード生成（編集室） | **同梱**（qr-creator 1.0.0 / MIT） | — |
+
+QR は以前 cdnjs から読んでいましたが、塞がれると `<canvas>` だけが残り、
+**読み取れない白い四角が紙面に刷られていました**（実測：塗られた画素 2500 → 0）。
+アプリ全体は動くので気づけません。いまは `admin.html` に同梱してあり、
+**CDN から取る実行コードは 0 バイト**です。
+
+同梱ライブラリを更新する手順は `admin.html` の該当コメントに書いてあります。
 
 ---
+
+## 開発
+
+```bash
+node scripts/check-project.mjs           # 品質ゲート
+node scripts/check-project.mjs --list    # 検査項目の一覧
+node --test tests/check-project.test.mjs # 検査そのものを確かめる
+```
+
+CI が `pull_request` と `push` の両方でこの2つを回します。
+**検査を直したら、わざと壊した入力で確かめるテストも一緒に直してください。**
+「0件でした」だけでは、検査が動いているのか何も見ていないのか区別できません。
 
 ## ライセンス
 
 [MIT License](LICENSE)
+
+同梱している qr-creator 1.0.0 は MIT License（Nimiq / jquery-qrcode, Lars Jung）です。

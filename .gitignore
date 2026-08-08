@@ -1,0 +1,20 @@
+# Apps Script のローカル設定。スクリプトIDが入るのでコミットしない
+.clasp.json
+.clasprc.json
+
+# 秘密情報
+.env
+.env.*
+!.env.example
+
+# Node（点検スクリプトを動かしたときに出る）
+# package-lock.json は、依存を足したときに版を固定するため意図的に含める
+node_modules/
+npm-debug.log*
+
+# OS・エディタ
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/

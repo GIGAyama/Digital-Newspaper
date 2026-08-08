@@ -1,0 +1,29 @@
+name: CI
+
+# pull_request と push の両方で動かす。
+# push: branches: [main] だけだと、PR の時点で落ちていることに気づけない。
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      # 品質ゲートそのものが正しく動くかを先に確かめる。
+      # 検査が壊れていると「0件でした」が意味を持たないため、順序を入れ替えない。
+      - name: 検査そのものを確かめる（わざと壊した入力で）
+        run: node --test tests/check-project.test.mjs
+
+      - name: 品質ゲート
+        run: node scripts/check-project.mjs
