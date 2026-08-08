@@ -180,6 +180,7 @@ https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOpQrStUvWxYz
 次のものがまとめて保存されます。
 
 - どの記事にチェックを入れたか
+- 紙面の上で直した新聞名・発行日
 - 紙面の上で直した見出し・記者名・本文
 - 並び替えた順番
 - 自由記述欄
