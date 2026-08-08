@@ -136,7 +136,10 @@ export function inspect(files) {
   };
   for (const [f, raw] of gs) parse(raw, f, 'ファイル');
   for (const [f, raw] of html) {
-    for (const m of raw.matchAll(/<script(?![^>]*\bsrc\s*=)[^>]*>([\s\S]*?)<\/script>/gi)) {
+    // コメントを先に落とす。落とさないと、コメントの中に書いた <script> の
+    // 文字を本物のタグと読み違え、そこからコメントの残りごと拾ってしまう。
+    // （実際に、同梱ライブラリの説明コメントで踏んだ）
+    for (const m of stripComments(raw, 'html').matchAll(/<script(?![^>]*\bsrc\s*=)[^>]*>([\s\S]*?)<\/script>/gi)) {
       // スクリプトレットが混ざっていると解析できない。GAS がサーバー側で
       // 埋めるものなので、ここでは畳んでから見る。
       // 0 に置き換えるのは、文字列の中（"<?= x ?>" → "0"）でも

@@ -98,6 +98,10 @@ test('構文', () => {
   miss({ 'a.html': '<script src="https://x/y.js"></script>' }, 'SYNTAX');
   // GAS のスクリプトレットは、サーバー側で埋まるものなので畳んでから見る
   miss({ 'a.html': '<script>const u = "<?= getUrl() ?>";</script>' }, 'SYNTAX');
+  // コメントの中に書いた <script> の文字を、本物のタグと読み違えない。
+  // 同梱ライブラリの説明コメントに「この <script> の中に貼り替え」と
+  // 書いたところ、そこから拾ってしまった
+  miss({ 'a.html': '<!-- この <script> の中に貼る -->\n<script>const a = 1;</script>' }, 'SYNTAX');
 });
 
 test('置かれているべきファイル', () => {
