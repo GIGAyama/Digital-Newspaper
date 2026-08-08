@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
+  <defs>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4fc3f7"/><stop offset="1" stop-color="#0288d1"/>
+    </linearGradient>
+    <linearGradient id="sky2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#81d4fa"/><stop offset="1" stop-color="#e1f5fe"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#sky2)"/>
+  <circle cx="120" cy="96" r="44" fill="#fff59d"/>
+  <ellipse cx="560" cy="110" rx="76" ry="28" fill="#ffffff" opacity="0.9"/>
+  <ellipse cx="620" cy="96" rx="46" ry="22" fill="#ffffff" opacity="0.9"/>
+  <!-- プールサイド -->
+  <rect y="230" width="800" height="370" fill="#eceff1"/>
+  <rect x="60" y="270" width="680" height="290" rx="10" fill="url(#water)"/>
+  <!-- コースロープ -->
+  <g>
+    <g fill="#ffee58"><circle cx="110" cy="330" r="9"/><circle cx="150" cy="330" r="9"/><circle cx="190" cy="330" r="9"/><circle cx="230" cy="330" r="9"/><circle cx="270" cy="330" r="9"/><circle cx="310" cy="330" r="9"/><circle cx="350" cy="330" r="9"/><circle cx="390" cy="330" r="9"/><circle cx="430" cy="330" r="9"/><circle cx="470" cy="330" r="9"/><circle cx="510" cy="330" r="9"/><circle cx="550" cy="330" r="9"/><circle cx="590" cy="330" r="9"/><circle cx="630" cy="330" r="9"/><circle cx="670" cy="330" r="9"/></g>
+    <g fill="#ef5350"><circle cx="110" cy="430" r="9"/><circle cx="150" cy="430" r="9"/><circle cx="190" cy="430" r="9"/><circle cx="230" cy="430" r="9"/><circle cx="270" cy="430" r="9"/><circle cx="310" cy="430" r="9"/><circle cx="350" cy="430" r="9"/><circle cx="390" cy="430" r="9"/><circle cx="430" cy="430" r="9"/><circle cx="470" cy="430" r="9"/><circle cx="510" cy="430" r="9"/><circle cx="550" cy="430" r="9"/><circle cx="590" cy="430" r="9"/><circle cx="630" cy="430" r="9"/><circle cx="670" cy="430" r="9"/></g>
+    <g fill="#ffffff" opacity="0.9"><circle cx="110" cy="520" r="9"/><circle cx="150" cy="520" r="9"/><circle cx="190" cy="520" r="9"/><circle cx="230" cy="520" r="9"/><circle cx="270" cy="520" r="9"/><circle cx="310" cy="520" r="9"/><circle cx="350" cy="520" r="9"/><circle cx="390" cy="520" r="9"/><circle cx="430" cy="520" r="9"/><circle cx="470" cy="520" r="9"/><circle cx="510" cy="520" r="9"/><circle cx="550" cy="520" r="9"/><circle cx="590" cy="520" r="9"/><circle cx="630" cy="520" r="9"/><circle cx="670" cy="520" r="9"/></g>
+  </g>
+  <!-- 水面のきらめき -->
+  <g stroke="#ffffff" stroke-width="5" opacity="0.55" stroke-linecap="round">
+    <path d="M120 380 q20 -10 40 0"/><path d="M260 470 q20 -10 40 0"/>
+    <path d="M470 385 q20 -10 40 0"/><path d="M600 480 q20 -10 40 0"/>
+    <path d="M340 300 q20 -10 40 0"/>
+  </g>
+  <!-- ビート板 -->
+  <rect x="640" y="196" width="96" height="60" rx="14" fill="#fdd835"/>
+  <rect x="662" y="216" width="52" height="22" rx="10" fill="#fff9c4"/>
+  <!-- スタート台 -->
+  <rect x="80" y="196" width="90" height="46" rx="6" fill="#b0bec5"/>
+  <rect x="96" y="242" width="14" height="26" fill="#90a4ae"/>
+  <rect x="140" y="242" width="14" height="26" fill="#90a4ae"/>
+</svg>
