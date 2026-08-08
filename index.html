@@ -15,6 +15,9 @@
       :root {
         --primary: #2c3e50;
         --accent: #3498db;
+        /* 選んだタグの面。--accent のままだと、その上に載る 11.4px の
+           ふりがなが 4.5 に届かない（実測 3.52）。色相は変えず1段濃くした版。 */
+        --accent-d: #2471a3;
         --bg: #f4f6f8;
         --card-bg: #ffffff;
         --text: #000000;
@@ -111,7 +114,8 @@
         transition: 0.2s;
         box-shadow: none !important;
       }
-      input[type="text"]::placeholder, textarea::placeholder { color: #888; font-weight: normal; }
+      /* もとは #888 で比 3.54。何を書けばよいかの合図なので、本文と同じ基準で測る。 */
+      input[type="text"]::placeholder, textarea::placeholder { color: #5f6368; font-weight: normal; }
       input[type="text"]:focus, textarea:focus { 
         border-color: var(--accent) !important; 
         background: #fff;
@@ -128,10 +132,13 @@
       }
       .tag-label:hover { background: #e9ecef; }
       .tag-radio:checked + .tag-label {
-        background: var(--accent); color: white; border-color: var(--accent);
-        box-shadow: 0 4px 10px rgba(52,152,219,0.3); transform: translateY(-2px);
+        background: var(--accent-d); color: white; border-color: var(--accent-d);
+        box-shadow: 0 4px 10px rgba(36,113,163,0.3); transform: translateY(-2px);
       }
-      .tag-radio:checked + .tag-label rt { color: rgba(255,255,255,0.9); }
+      /* ふりがなの色はここで決め打たない。上の「色のついた面では継がせる」
+         指定（.tag-label rt { color: inherit }）に任せる。
+         決め打つと、面の色を変えたときに取り残される。実際に前回それで
+         送信ボタンだけ直り、ここが 3.52 のまま残っていた。 */
       
       .file-drop-area {
         border: 2px dashed #cbd5e0; border-radius: 8px; padding: 20px; text-align: center;
@@ -171,7 +178,8 @@
       }
       .checkmark { color: white; font-size: 50px; }
       .success-title { font-size: 1.8rem; color: #2c3e50; font-weight: bold; margin-bottom: 10px; }
-      .success-sub { font-size: 1rem; color: #7f8c8d; }
+      /* もとは #7f8c8d で、オーバーレイの地の上で比 3.21。 */
+      .success-sub { font-size: 1rem; color: #5a6673; }
       @keyframes scaleIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
     </style>

@@ -116,7 +116,10 @@ function doGet(e) {
 
   return template.evaluate()
     .setTitle(title)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    // viewport-fit=cover が無いと、切り欠きのある端末で env(safe-area-inset-*) が使えない。
+    // GAS は画面を iframe で包むため、HTML 側の <meta> だけでは足りず、
+    // サーバー側で足すこのタグにも要る（v5 §5）。前回 index.html だけを直して漏れていた。
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .setFaviconUrl('https://drive.google.com/uc?id=1teNY1fFaXzZC3HivQIQ4t9nu49xYsbJN&.png');
 }

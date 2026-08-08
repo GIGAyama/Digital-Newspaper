@@ -3,7 +3,10 @@
   <head>
     <base target="_top">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- viewport-fit=cover は、切り欠きのある端末で env(safe-area-inset-*) を
+         CSS から使えるようにするために要る。GAS は画面を iframe で包むため、
+         ここと Code.gs の addMetaTag の両方に要る（v5 §5）。 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>新聞編集室 Professional Ver.1.0</title>
     
     <!-- 外部ライブラリ & フォント -->
@@ -80,6 +83,16 @@ typeof e)throw Error("bad rs block @ typeNumber:"+b+"/errorCorrectLevel:"+a);b=e
         --accent-color-ui: #e74c3c;
         --success-color: #27ae60;
         --warning-color: #f39c12;
+
+        /* 白い文字を載せる面と、地の上に置く文字は、上の色そのままでは
+           4.5:1 に届かない（実測 2.10〜3.82）。色相は変えず、面か文字を
+           1〜2段濃くした版を用意して、文字が乗るところだけこちらを使う。
+           面用と文字用を分けるのは v5 §2-8 の形。 */
+        --secondary-dark: #2471a3;   /* 白文字を載せて 5.30 (前 3.15) */
+        --success-dark:   #1e8449;   /* 白文字を載せて 4.72 (前 2.87) */
+        --danger-dark:    #c0392b;   /* 白文字を載せて 5.44 (前 3.82) */
+        --warning-dark:   #af601a;   /* 白文字を載せて 4.66 (前 2.85) */
+        --muted-text:     #5f6368;   /* 白地で 6.05 */
         
         /* Font Settings */
         --base-font: "BIZ UDPGothic", "Helvetica Neue", Arial, sans-serif;
@@ -133,10 +146,29 @@ typeof e)throw Error("bad rs block @ typeNumber:"+b+"/errorCorrectLevel:"+a);b=e
       }
       .config-section { display: flex; gap: 25px; flex-wrap: wrap; }
       .config-col { 
-        flex: 1; min-width: 280px; background: #f8f9fa; padding: 20px; border-radius: 10px; 
+        flex: 1; min-width: 280px; box-sizing: border-box; background: #f8f9fa; padding: 20px; border-radius: 10px; 
         box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05); transition: 0.3s;
       }
       .config-col:hover { background: #fff; box-shadow: 0 5px 15px rgba(0,0,0,0.08); }
+
+      /* min-width: 280px は、中くらいの画面で列を折り返させるために要る。
+         ただし画面そのものが 280px より狭いと、折り返しても入らず、
+         操作パネルごと横スクロールになる。狭いところでは横並びをやめて
+         縦に積む。min-width を外すだけだと、3列が1行に押し込まれて
+         中身のほうがはみ出す（実測でかえって広がった）。 */
+      @media (max-width: 700px) {
+        .config-section { display: block; }
+        .config-col { min-width: 0; margin-bottom: 15px; }
+        .config-col:last-child { margin-bottom: 0; }
+
+        /* 日付の絞り込みは「開始・～・終了・クリア」を1行に並べている。
+           日付入力そのものが 148px を下回れないので、狭い画面では
+           2つ並べた時点ではみ出す。折り返せるようにする。 */
+        .filter-box > div { flex-wrap: wrap; }
+        /* 44px は当たり判定の下限なので、狭くしすぎない。
+           2つ並べると入らない幅では、1行に1つずつ置く。 */
+        .filter-box input[type="date"] { min-width: 44px; flex: 1 1 100%; }
+      }
       
       .config-col h3 { 
         margin-top: 0; font-size: 1.05rem; color: #444; border-bottom: 2px solid #e0e0e0; 
@@ -156,11 +188,11 @@ typeof e)throw Error("bad rs block @ typeNumber:"+b+"/errorCorrectLevel:"+a);b=e
         font-weight: bold; color: white; margin-top: 10px; transition: 0.2s;
         display: flex; justify-content: center; align-items: center; gap: 8px;
       }
-      .btn-print { background: linear-gradient(to bottom, #2ecc71, #27ae60); box-shadow: 0 4px 0 #1e8449; text-shadow: 0 1px 1px rgba(0,0,0,0.2); font-size: 1.1rem; }
-      .btn-print:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #1e8449; }
+      .btn-print { background: linear-gradient(to bottom, #1e8449, #186a3b); box-shadow: 0 4px 0 #145a32; text-shadow: 0 1px 1px rgba(0,0,0,0.2); font-size: 1.1rem; }
+      .btn-print:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #145a32; }
       .btn-free { background: #9b59b6; margin-bottom: 15px; font-size: 0.95rem; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
       .btn-refresh { 
-        background: var(--secondary-color); color: white; border: none; padding: 4px 10px; font-size: 0.8rem; 
+        background: var(--secondary-dark); color: white; border: none; padding: 4px 10px; font-size: 0.8rem; 
         border-radius: 4px; cursor: pointer; margin-left: auto; transition: 0.2s;
       }
 
@@ -184,7 +216,7 @@ typeof e)throw Error("bad rs block @ typeNumber:"+b+"/errorCorrectLevel:"+a);b=e
       .item-tag-row { display:flex; align-items:center; gap:10px; margin-top:8px; margin-bottom:5px; flex-wrap: wrap; }
       .input-wrapper { display: flex; align-items: center; gap: 6px; background: #f1f3f5; padding: 4px 8px; border-radius: 20px; }
       .tag-input { font-size: 0.8rem; padding: 4px 8px; border: none; background: transparent; width: 80px; color: #555; }
-      .qr-input { font-size: 0.8rem; padding: 4px 8px; border: none; background: transparent; width: 140px; color: var(--secondary-color); }
+      .qr-input { font-size: 0.8rem; padding: 4px 8px; border: none; background: transparent; width: 140px; color: var(--secondary-dark); }
       
       .item-settings { 
         margin-left: 0; margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap; 
@@ -287,6 +319,79 @@ typeof e)throw Error("bad rs block @ typeNumber:"+b+"/errorCorrectLevel:"+a);b=e
       }
       
       /* =========================================
+         5.5 タップ領域・操作・配慮設定（GIGA Standard v5 §2-3 / §2-9 / §2-10）
+         ========================================= */
+
+      /* 実測で 73箇所が 44px に届いていなかった。
+         上部バーやモーダルの足元は詰めて組んであるので、
+         min-height を直接当てると折り返して別の破綻を生む。
+         疑似要素で「当たり判定だけ」を広げる。見た目は変わらない。 */
+      .top-btn, .modal-btn, .btn-refresh, .filter-box button,
+      .modal-body button, .article-item button {
+        position: relative;
+      }
+      .top-btn::after, .modal-btn::after, .btn-refresh::after, .filter-box button::after,
+      .modal-body button::after, .article-item button::after {
+        content: "";
+        position: absolute; top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        width: 100%; height: 100%;
+        min-width: 44px; min-height: 44px;
+      }
+
+      /* 入力欄と選択肢は疑似要素を持てないので、高さそのものを確保する。
+         縦に積んである列なので、広げても折り返しは起きない。 */
+      .admin-panel input:not([type="checkbox"]):not([type="radio"]),
+      .admin-panel select,
+      .modal-body input[type="text"], .modal-body select, .modal-body textarea,
+      .tag-row input {
+        min-height: 44px;
+      }
+
+      /* チェックボックスとラジオにも疑似要素は使えない（v5 §2-9）。
+         囲みのラベル側で高さを確保する。 */
+      .filter-box label, .item-settings label {
+        min-height: 44px;
+      }
+      .item-main label { min-height: 44px; }
+
+      /* 児童ではなく先生が使う画面だが、タッチ対応の Chromebook でも操作する。
+         ダブルタップ拡大の 300ms 待ちを消し、引っぱり更新の暴発を防ぐ。
+         二本指で広げる余地は残す（拡大は禁止しない）。 */
+      body { touch-action: manipulation; }
+      .article-list { overscroll-behavior: contain; }
+
+      /* キーボードで操作しているときだけ、はっきりした枠を出す。
+         この画面には焦点の見た目が無く、いまどこにいるか分からなかった。 */
+      :focus-visible { outline: 3px solid #1f4e8c; outline-offset: 2px; }
+
+      /* 切り欠きのある端末やホームバーに中身が潜り込まないようにする */
+      body {
+        padding-left: max(20px, env(safe-area-inset-left));
+        padding-right: max(20px, env(safe-area-inset-right));
+        padding-bottom: max(20px, env(safe-area-inset-bottom));
+      }
+
+      /* 動きに酔いやすい人・前庭障害のある人の設定を尊重する。
+         .01ms であって 0 ではない。0 にすると fill-mode: forwards が効かなくなり、
+         「動きを止める」つもりが「中身を消す」ことになる（v5 §2-10）。 */
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: .01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: .01ms !important;
+          scroll-behavior: auto !important;
+        }
+      }
+
+      /* Windows のハイコントラストモード。色で区別している境目が消えるので枠線を出す */
+      @media (forced-colors: active) {
+        button, input, textarea, select, .top-btn, .modal-btn, .article-item {
+          border: 1px solid ButtonText;
+        }
+      }
+
+      /* =========================================
          6. UIコンポーネント (Modals & Toasts)
          ========================================= */
       .modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(3px); opacity: 0; transition: opacity 0.3s; }
@@ -300,10 +405,10 @@ typeof e)throw Error("bad rs block @ typeNumber:"+b+"/errorCorrectLevel:"+a);b=e
       .modal-btn { padding: 10px 20px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; font-size: 0.9rem; }
       .btn-cancel { background: #e0e0e0; color: #555; }
       .btn-cancel:hover { background: #d0d0d0; }
-      .btn-confirm { background: var(--secondary-color); color: white; box-shadow: 0 2px 5px rgba(52,152,219,0.3); }
+      .btn-confirm { background: var(--secondary-dark); color: white; box-shadow: 0 2px 5px rgba(36,113,163,0.3); }
       .btn-confirm:hover { background: #2980b9; transform: translateY(-1px); }
-      .btn-danger { background: var(--accent-color-ui); color: white; }
-      .btn-danger:hover { background: #c0392b; }
+      .btn-danger { background: var(--danger-dark); color: white; }
+      .btn-danger:hover { background: #a93226; }
 
       .toast-container { position: fixed; bottom: 30px; right: 30px; z-index: 3000; display: flex; flex-direction: column; gap: 10px; }
       .toast { 
@@ -314,9 +419,9 @@ typeof e)throw Error("bad rs block @ typeNumber:"+b+"/errorCorrectLevel:"+a);b=e
         max-width: 300px;
       }
       .toast.show { transform: translateX(0); }
-      .toast-success { background: var(--success-color); }
-      .toast-error { background: var(--accent-color-ui); }
-      .toast-info { background: var(--secondary-color); }
+      .toast-success { background: var(--success-dark); }
+      .toast-error { background: var(--danger-dark); }
+      .toast-info { background: var(--secondary-dark); }
       .toast-icon { font-size: 1.2rem; }
 
       /* タグ管理リスト */
@@ -356,7 +461,7 @@ typeof e)throw Error("bad rs block @ typeNumber:"+b+"/errorCorrectLevel:"+a);b=e
             <select id="colCount" onchange="updateLayout()"><option value="1">1段</option><option value="2">2段</option><option value="3" selected>3段</option><option value="4">4段</option></select>
           </div>
           <div class="control-group">
-            <label>文字サイズ <span id="val-fontSize" style="font-weight:normal; color:var(--secondary-color); font-size:0.9em; margin-left:5px;">12px</span></label>
+            <label>文字サイズ <span id="val-fontSize" style="font-weight:normal; color:var(--secondary-dark); font-size:0.9em; margin-left:5px;">12px</span></label>
             <input type="range" id="fontSizeRange" min="8" max="24" value="12" step="0.5" oninput="updateStyles()">
           </div>
         </div>
@@ -420,7 +525,7 @@ typeof e)throw Error("bad rs block @ typeNumber:"+b+"/errorCorrectLevel:"+a);b=e
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:0.85rem; background:white; padding:6px 10px; border-radius:6px; border:1px solid #ddd;">
               <span style="color:var(--secondary-color); font-size:1.1rem;">📅</span>
               <input type="date" id="dateFrom" onchange="refreshListAndPaper()" style="border:none; color:#555; width:auto; flex:1;">
-              <span style="color:#aaa;">～</span>
+              <span style="color:var(--muted-text);">～</span>
               <input type="date" id="dateTo" onchange="refreshListAndPaper()" style="border:none; color:#555; width:auto; flex:1;">
               <button onclick="clearDateFilter()" style="font-size:0.75rem; background:#f0f0f0; border:none; padding:4px 10px; border-radius:15px; cursor:pointer; color:#666; font-weight:bold;">クリア</button>
             </div>
@@ -532,7 +637,7 @@ typeof e)throw Error("bad rs block @ typeNumber:"+b+"/errorCorrectLevel:"+a);b=e
             <label style="margin-bottom:8px;">💾 設定を新規保存</label>
             <div style="display:flex; gap:8px;">
               <input type="text" id="templateName" placeholder="例: 黒板スタイル" style="flex:1;"> 
-              <button onclick="executeSaveTemplate()" style="padding:6px 12px; background:var(--success-color); color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">保存</button>
+              <button onclick="executeSaveTemplate()" style="padding:6px 12px; background:var(--success-dark); color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">保存</button>
             </div>
           </div>
           
@@ -540,7 +645,7 @@ typeof e)throw Error("bad rs block @ typeNumber:"+b+"/errorCorrectLevel:"+a);b=e
             <label style="margin-bottom:8px;">📂 設定を適用</label>
             <div style="display:flex; gap:8px;">
               <select id="templateSelect" style="flex:1;"></select> 
-              <button onclick="executeLoadTemplate()" style="padding:6px 12px; background:#e67e22; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">適用</button>
+              <button onclick="executeLoadTemplate()" style="padding:6px 12px; background:var(--warning-dark); color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">適用</button>
             </div>
           </div>
         </div>
@@ -638,7 +743,7 @@ typeof e)throw Error("bad rs block @ typeNumber:"+b+"/errorCorrectLevel:"+a);b=e
                 <span class="drag-handle" style="margin-right:10px; color:#ccc; cursor:${draggable ? 'grab' : 'default'};">☰</span>
                 <label style="cursor:pointer; flex:1; display:flex; align-items:center; gap:8px;">
                   <input type="checkbox" onchange="updateState('${art.id}','checked',this.checked)" ${state.checked?'checked':''} style="width:auto;"> 
-                  <span style="font-weight:bold; font-size:1rem;">${art.title}</span> <span style="font-size:0.8rem; color:#777;">(${art.reporterName})</span>
+                  <span style="font-weight:bold; font-size:1rem;">${art.title}</span> <span style="font-size:0.8rem; color:#6b6b6b;">(${art.reporterName})</span>
                 </label>
                 ${art.isFree ? `<button onclick="confirmDeleteFree('${art.id}')" style="background:none; border:none; cursor:pointer; font-size:1.1rem;" title="削除">🗑️</button>` : ''}
               </div>
@@ -945,10 +1050,10 @@ typeof e)throw Error("bad rs block @ typeNumber:"+b+"/errorCorrectLevel:"+a);b=e
         editingTags.forEach((t, i) => {
           const div = document.createElement('div'); div.className = 'tag-row';
           div.innerHTML = `
-            <input type="text" value="${t.icon}" style="width:40px; text-align:center;" placeholder="絵" onchange="updateTag(${i},'icon',this.value)">
+            <input type="text" value="${t.icon}" style="width:44px; text-align:center;" placeholder="絵" aria-label="タグの絵文字" onchange="updateTag(${i},'icon',this.value)">
             <input type="text" value="${t.name}" style="flex:1;" placeholder="名前" onchange="updateTag(${i},'name',this.value)">
             <input type="text" value="${t.ruby}" style="flex:1;" placeholder="ふりがな" onchange="updateTag(${i},'ruby',this.value)">
-            <button onclick="deleteTag(${i})" style="background:#e74c3c; color:white; border:none; border-radius:4px; padding:4px 8px; cursor:pointer;">×</button>
+            <button onclick="deleteTag(${i})" aria-label="このタグを消す" style="background:var(--danger-dark); color:white; border:none; border-radius:4px; min-width:44px; min-height:44px; cursor:pointer; font-size:1.1rem;">×</button>
           `;
           c.appendChild(div);
         });
