@@ -980,8 +980,13 @@ typeof e)throw Error("bad rs block @ typeNumber:"+b+"/errorCorrectLevel:"+a);b=e
 
       function executeSave(){
         const n=document.getElementById('saveName').value; if(!n) { showToast('保存名を入力してください', 'error'); return; }
-        const d={ free:freeArticles, state:articleStates, order:customOrder, edits: editedContent, 
-          conf:{ 
+        // 新聞名と発行日も一緒に持たせる。ここを入れ忘れていたため、
+        // 「三年二組 学級新聞」に直して保存しても、呼び出すと「学級新聞」と
+        // その日の日付に戻っていた。先生がいちばん先に直すところなので、
+        // 続きから編集するときに毎回打ち直しになっていた。
+        const d={ free:freeArticles, state:articleStates, order:customOrder, edits: editedContent,
+          paper:{ title: document.querySelector('.newspaper-title').innerText, date: document.querySelector('.newspaper-date').innerText },
+          conf:{
             ori:document.getElementById('paperOri').value, dir:document.getElementById('textDir').value, col:document.getElementById('colCount').value,
             titleStyle: document.getElementById('titleStyle').value, fontFamily: document.getElementById('fontFamily').value, fontSize: document.getElementById('fontSizeRange').value,
             theme: document.getElementById('themeSelect').value
@@ -996,8 +1001,14 @@ typeof e)throw Error("bad rs block @ typeNumber:"+b+"/errorCorrectLevel:"+a);b=e
         const n=document.getElementById('loadSelect').value; if(!n)return;
         google.script.run.withSuccessHandler(r=>{
            if(r.success){ 
-             const d=JSON.parse(r.data); freeArticles=d.free||[]; articleStates=d.state||{}; customOrder=d.order||[]; editedContent=d.edits||{}; 
-             if(d.conf){ 
+             const d=JSON.parse(r.data); freeArticles=d.free||[]; articleStates=d.state||{}; customOrder=d.order||[]; editedContent=d.edits||{};
+             // paper が無いのは、この項目を持たせる前に保存されたもの。
+             // そのときは今の見出しをそのまま残す。
+             if(d.paper){
+               if(d.paper.title) document.querySelector('.newspaper-title').innerText = d.paper.title;
+               if(d.paper.date) document.querySelector('.newspaper-date').innerText = d.paper.date;
+             }
+             if(d.conf){
                document.getElementById('paperOri').value=d.conf.ori; document.getElementById('textDir').value=d.conf.dir; document.getElementById('colCount').value=d.conf.col;
                if(d.conf.titleStyle) document.getElementById('titleStyle').value = d.conf.titleStyle;
                if(d.conf.fontFamily) document.getElementById('fontFamily').value = d.conf.fontFamily;
