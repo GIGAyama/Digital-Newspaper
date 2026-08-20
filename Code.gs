@@ -17,8 +17,10 @@
 
 /** プロパティストアのキー */
 const KEYS = {
-  FOLDER_ID: 'IMAGE_FOLDER_ID', // 画像保存先フォルダID
-  TAG_SETTINGS: 'TAG_SETTINGS'  // タグ設定JSON
+  FOLDER_ID: 'IMAGE_FOLDER_ID',      // 画像保存先フォルダID
+  TAG_SETTINGS: 'TAG_SETTINGS',      // タグ設定JSON
+  TEACHER_EMAILS: 'TEACHER_EMAILS',  // 管理画面を使える先生のメール（カンマ区切り）
+  OWNER_EMAIL: 'OWNER_EMAIL'         // TEACHER_EMAILS 未設定時の照合先（初回セットアップ実行者）
 };
 
 /** シート名定義 */
@@ -37,6 +39,112 @@ const DEFAULT_TAGS = [
 ];
 
 // ==================================================
+// 1.5 教員判定 (Authorization)
+// ==================================================
+//
+// 管理画面は URL を知っていれば誰でも開けてしまう作りだった。
+// 画面を隠すだけでは足りない（google.script.run から関数を直接呼べる）ので、
+// 「画面の入口」と「管理系のサーバー関数」の両方で同じ判定を通す。
+
+/** 文字列を照合用に正規化する（前後の空白と大文字小文字の差を無くす） */
+function normalizeEmail_(value) {
+  return String(value == null ? '' : value).trim().toLowerCase();
+}
+
+/**
+ * 管理画面を使える人のメール一覧を返す。
+ * TEACHER_EMAILS（カンマ区切り）が正。未設定のときだけ、
+ * 初回セットアップ実行者として記録した OWNER_EMAIL を使う。
+ */
+function getTeacherEmails_() {
+  const props = PropertiesService.getScriptProperties();
+  const raw = props.getProperty(KEYS.TEACHER_EMAILS) || '';
+  const list = raw.split(',').map(normalizeEmail_).filter(v => v);
+  if (list.length > 0) return list;
+
+  const owner = normalizeEmail_(props.getProperty(KEYS.OWNER_EMAIL));
+  return owner ? [owner] : [];
+}
+
+/**
+ * いま画面を見ている人が先生かどうか。
+ * メールが取れないとき（ドメイン外・未ログイン・共有アカウント）は必ず false。
+ * 許可リストが空のときも false（設定するまでは誰も入れない＝安全側に倒す）。
+ */
+function isTeacher_() {
+  let email = '';
+  try {
+    email = normalizeEmail_(Session.getActiveUser().getEmail());
+  } catch (e) {
+    console.warn('利用者のメールを取得できませんでした: ' + e);
+    return false;
+  }
+  if (!email) return false;
+
+  const allowed = getTeacherEmails_();
+  if (allowed.length === 0) {
+    console.warn('TEACHER_EMAILS も OWNER_EMAIL も未設定のため、管理機能を拒否しました。');
+    return false;
+  }
+  return allowed.indexOf(email) !== -1;
+}
+
+/** 管理系のサーバー関数の先頭で呼ぶ。先生でなければ例外を投げて処理を止める。 */
+function requireTeacher_() {
+  if (!isTeacher_()) {
+    throw new Error('この操作は先生のアカウントでしか実行できません。学校のアカウントでログインし直してください。');
+  }
+}
+
+/**
+ * 初回セットアップ（スプレッドシートのメニュー操作）の実行者を OWNER_EMAIL として記録する。
+ * TEACHER_EMAILS が設定されていれば何もしない。
+ */
+function ensureOwnerEmail_() {
+  const props = PropertiesService.getScriptProperties();
+  if ((props.getProperty(KEYS.TEACHER_EMAILS) || '').trim()) return '';
+  const existing = normalizeEmail_(props.getProperty(KEYS.OWNER_EMAIL));
+  if (existing) return existing;
+
+  let email = '';
+  try {
+    email = normalizeEmail_(Session.getEffectiveUser().getEmail());
+  } catch (e) {
+    email = '';
+  }
+  if (!email) {
+    console.warn('セットアップ実行者のメールが取得できず、OWNER_EMAIL を記録できませんでした。');
+    return '';
+  }
+  props.setProperty(KEYS.OWNER_EMAIL, email);
+  console.info('OWNER_EMAIL を記録しました（管理画面を使えるアカウント）。');
+  return email;
+}
+
+/** メニューから、管理画面を使える先生のメールを登録する */
+function setTeacherEmails() {
+  const ui = SpreadsheetApp.getUi();
+  const props = PropertiesService.getScriptProperties();
+  ensureOwnerEmail_();
+  const current = props.getProperty(KEYS.TEACHER_EMAILS) || getTeacherEmails_().join(',');
+
+  const result = ui.prompt(
+    '管理画面を使える先生の設定',
+    '先生のメールアドレスをカンマ区切りで入力してください：\n(現在: ' + (current || '未設定') + ')',
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (result.getSelectedButton() !== ui.Button.OK) return;
+
+  const list = result.getResponseText().split(',').map(normalizeEmail_).filter(v => v);
+  if (list.length === 0) {
+    ui.alert('❌ 1件も入力されていません。変更をキャンセルしました。');
+    return;
+  }
+  props.setProperty(KEYS.TEACHER_EMAILS, list.join(','));
+  ui.alert('✅ ' + list.length + ' 件のアカウントを登録しました。\nこのアカウント以外は編集室に入れません。');
+}
+
+// ==================================================
 // 2. スプレッドシート連携・メニュー (Spreadsheet UI)
 // ==================================================
 
@@ -44,13 +152,16 @@ function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu('📰 新聞システム')
     .addItem('1. 写真フォルダの設定', 'setFolderId')
+    .addItem('2. 先生のメールアドレスを設定', 'setTeacherEmails')
     .addSeparator()
-    .addItem('2. 先生用管理画面を開く', 'showAdminUrl')
+    .addItem('3. 先生用管理画面を開く', 'showAdminUrl')
     .addToUi();
 }
 
 function setFolderId() {
   const ui = SpreadsheetApp.getUi();
+  // 初回セットアップ実行者を管理者として記録する（TEACHER_EMAILS 未設定時のみ）
+  ensureOwnerEmail_();
   const props = PropertiesService.getScriptProperties();
   const currentId = props.getProperty(KEYS.FOLDER_ID) || '';
 
@@ -78,6 +189,16 @@ function setFolderId() {
 
 function showAdminUrl() {
   const ui = SpreadsheetApp.getUi();
+  ensureOwnerEmail_();
+
+  if (!isTeacher_()) {
+    ui.alert(
+      '⚠️ このアカウントは管理画面を使えません。\n' +
+      'メニューの「2. 先生のメールアドレスを設定」で、いま使っているアカウントを登録してください。'
+    );
+    return;
+  }
+
   const url = ScriptApp.getService().getUrl();
 
   if (!url) {
@@ -102,17 +223,30 @@ function showAdminUrl() {
 // ==================================================
 
 function doGet(e) {
-  const page = e.parameter.p;
+  const page = (e && e.parameter) ? e.parameter.p : '';
+  const teacher = isTeacher_();
   let template;
   let title;
 
   if (page === 'admin') {
+    // 画面を隠すだけでは足りないが、入口も塞ぐ（サーバー関数側でも同じ判定を通す）
+    if (!teacher) {
+      return HtmlService.createHtmlOutput(
+        '<div style="font-family:sans-serif; padding:24px; color:#333; line-height:1.8;">' +
+        '<h2 style="margin-top:0;">🔒 このページは先生専用です</h2>' +
+        '<p>編集室は、学校のアカウントで登録された先生だけが開けます。</p>' +
+        '<p style="font-size:0.9rem; color:#666;">先生へ：スプレッドシートのメニュー「📰 新聞システム」→「2. 先生のメールアドレスを設定」から、使うアカウントを登録してください。</p>' +
+        '</div>'
+      ).setTitle('デジタル新聞編集室');
+    }
     template = HtmlService.createTemplateFromFile('admin');
     title = 'デジタル新聞編集室';
   } else {
     template = HtmlService.createTemplateFromFile('index');
     title = 'デジタルクラス新聞社';
   }
+  // 児童が見る画面に編集室への入口を出さないための目印（index.html で使う）
+  template.isTeacher = teacher;
 
   return template.evaluate()
     .setTitle(title)
@@ -127,6 +261,67 @@ function doGet(e) {
 // ==================================================
 // 4. データ処理ロジック (Data Logic)
 // ==================================================
+
+// --- 写真の共有設定 (Photo Sharing) ---
+
+/**
+ * 児童の写真は「リンクを知っている全員」には公開しない。
+ * まず学校ドメイン内だけに限定し、Google Workspace 以外のアカウント
+ * （個人の Gmail など）で DOMAIN_WITH_LINK が使えないときは PRIVATE まで閉じる。
+ * どちらになったかは必ずログに残す。
+ * @return {string} 実際に設定できた共有範囲
+ */
+function applyPhotoSharing_(file) {
+  try {
+    file.setSharing(DriveApp.Access.DOMAIN_WITH_LINK, DriveApp.Permission.VIEW);
+    console.info('写真の共有範囲を DOMAIN_WITH_LINK にしました: ' + file.getId());
+    return 'DOMAIN_WITH_LINK';
+  } catch (e) {
+    console.warn(
+      'DOMAIN_WITH_LINK を設定できませんでした（Google Workspace アカウントではない可能性）。' +
+      'PRIVATE にフォールバックします: ' + e
+    );
+  }
+
+  try {
+    file.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE);
+    console.warn('写真の共有範囲を PRIVATE にしました: ' + file.getId());
+  } catch (e2) {
+    // ここまで失敗したら共有範囲は既定（作成者のみ）のまま。写真は残す。
+    console.error('写真の共有範囲を変更できませんでした: ' + file.getId() + ' / ' + e2);
+  }
+
+  // PRIVATE のままだと先生が記事の写真を見られないので、登録済みの先生にだけ閲覧を許す
+  shareWithTeachers_(file);
+  return 'PRIVATE';
+}
+
+/** 登録済みの先生にだけ閲覧権を渡す（PRIVATE フォールバック時の救済） */
+function shareWithTeachers_(file) {
+  const teachers = getTeacherEmails_();
+  if (teachers.length === 0) {
+    console.warn('先生のメールが未登録のため、PRIVATE の写真を共有できませんでした: ' + file.getId());
+    return;
+  }
+  teachers.forEach(email => {
+    try {
+      file.addViewer(email);
+    } catch (e) {
+      console.warn('写真の閲覧権を渡せませんでした（宛先は Script Properties を参照）: ' + e);
+    }
+  });
+}
+
+/**
+ * 画像の表示用URLを作る。
+ * lh3.googleusercontent.com/d/<id> は「リンクを知っている全員」向けの
+ * 公開CDN経路で、ドメイン限定・非公開のファイルでは表示できない。
+ * drive.google.com/thumbnail は閲覧者の Google ログインで権限を見るため、
+ * DOMAIN_WITH_LINK でも PRIVATE（＋先生に共有）でも表示できる。
+ */
+function buildImageUrl_(fileId) {
+  return 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w1600';
+}
 
 // --- 記事関連 (Articles) ---
 
@@ -175,8 +370,8 @@ function saveArticle(data) {
 
         const blob = Utilities.newBlob(Utilities.base64Decode(data.image), data.mimeType, "img_" + id);
         const file = folder.createFile(blob);
-        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-        imageUrl = "https://lh3.googleusercontent.com/d/" + file.getId();
+        applyPhotoSharing_(file);
+        imageUrl = buildImageUrl_(file.getId());
 
       } catch (e) {
         console.error("画像保存エラー: " + e.toString());
@@ -210,6 +405,7 @@ function saveArticle(data) {
  * 記事一覧を取得する (Server -> Admin Client)
  */
 function getArticles() {
+  requireTeacher_();
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName(SHEETS.ARTICLES);
@@ -242,7 +438,8 @@ function getArticles() {
       if (rawImgUrl) {
         const idMatch = rawImgUrl.match(/id=([a-zA-Z0-9_-]+)/) || rawImgUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
         if (idMatch && idMatch[1]) {
-          rawImgUrl = "https://lh3.googleusercontent.com/d/" + idMatch[1];
+          // 過去に保存した lh3 形式（公開リンク前提）も、権限を見る形式へ読み替える
+          rawImgUrl = buildImageUrl_(idMatch[1]);
         }
       }
 
@@ -265,6 +462,7 @@ function getArticles() {
  * 記事のタグを更新する
  */
 function updateArticleTag(id, newTag) {
+  requireTeacher_();
   // ロック取得 (短時間の書き込み)
   const lock = LockService.getScriptLock();
   try {
@@ -305,6 +503,7 @@ function getSystemSheet() {
 }
 
 function saveLayoutState(name, json) {
+  requireTeacher_();
   const sheet = getSystemSheet();
   const dateStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm");
   sheet.appendRow(['LAYOUT', name, json, dateStr]);
@@ -312,6 +511,7 @@ function saveLayoutState(name, json) {
 }
 
 function getSavedList() {
+  requireTeacher_();
   const sheet = getSystemSheet();
   const rows = sheet.getDataRange().getValues();
   return rows
@@ -324,6 +524,7 @@ function getSavedList() {
 }
 
 function loadLayoutState(name) {
+  requireTeacher_();
   const sheet = getSystemSheet();
   const rows = sheet.getDataRange().getValues();
   for (let i = rows.length - 1; i >= 0; i--) {
@@ -335,6 +536,7 @@ function loadLayoutState(name) {
 }
 
 function saveTemplate(name, json) {
+  requireTeacher_();
   const sheet = getSystemSheet();
   const rows = sheet.getDataRange().getValues();
   for (let i = rows.length - 1; i >= 0; i--) {
@@ -348,12 +550,14 @@ function saveTemplate(name, json) {
 }
 
 function getTemplateList() {
+  requireTeacher_();
   const sheet = getSystemSheet();
   const rows = sheet.getDataRange().getValues();
   return rows.filter(r => r[0] === 'TEMPLATE').map(r => ({ name: r[1] })).reverse();
 }
 
 function loadTemplate(name) {
+  requireTeacher_();
   const sheet = getSystemSheet();
   const rows = sheet.getDataRange().getValues();
   for (let i = rows.length - 1; i >= 0; i--) {
@@ -365,8 +569,11 @@ function loadTemplate(name) {
 }
 
 // --- タグ管理 (Tag Settings) ---
+// 読み取り（getTagsSettings / getSchoolTags）は児童の投稿画面も使うので開いている。
+// 書き換え（saveTagsSettings）は先生だけ。
 
 function saveTagsSettings(tagsJson) {
+  requireTeacher_();
   PropertiesService.getScriptProperties().setProperty(KEYS.TAG_SETTINGS, tagsJson);
   return { success: true };
 }

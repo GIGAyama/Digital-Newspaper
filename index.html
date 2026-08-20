@@ -226,9 +226,13 @@
         <button type="submit" id="submitBtn"><ruby>送<rt>そう</rt>信<rt>しん</rt></ruby>する</button>
       </form>
 
+      <!-- 編集室への入口は児童には出さない。先生のアカウントで開いたときだけ表示する
+           （doGet が template.isTeacher を渡す。サーバー関数側でも同じ判定を通している） -->
+      <? if (isTeacher) { ?>
       <div style="margin-top: 50px; text-align: center; border-top: 1px solid #eee; padding-top: 25px;">
         <a href="<?= ScriptApp.getService().getUrl() ?>?p=admin" class="admin-link">編集ページへ</a>
       </div>
+      <? } ?>
     </main>
 
     <div id="success-overlay">
