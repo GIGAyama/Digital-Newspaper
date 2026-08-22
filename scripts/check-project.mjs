@@ -48,7 +48,15 @@ export function inspect(files) {
     // スプレッドシートID / フォルダID の直書き（PropertiesService を使うこと）
     const idLit = src.match(/openById\(\s*['"][^'"]{20,}['"]|getFolderById\(\s*['"][^'"]{20,}['"]/);
     if (idLit) add('SECRET_ID', f, 'シートID／フォルダIDが直書きされている: ' + idLit[0].slice(0, 40));
-    if (/[\w.+-]+@(?!example\.)[\w-]+\.[\w.]+/.test(src.replace(/https?:\/\/\S+/g, '')))
+    // このルールが探しているのは「コードに紛れ込んだ連絡先」であって、
+    // 法務ページに載せる問い合わせ先ではない。プライバシーポリシーと利用規約は
+    // 連絡先を載せることが要件なので、対象から外す。
+    // （外さないと本番が常に赤くなり、ゲートが何も知らせなくなる）
+    const LEGAL_PAGES = ['privacy.html', 'terms.html'];
+    // ドメイン側は英字で始まることを求める。そうしないと npm の版指定
+    // （@google/clasp@3.3.0 の "clasp@3.3.0" の部分）をメールと読み違える。
+    if (!LEGAL_PAGES.includes(f.split('/').pop())
+        && /[\w.+-]+@(?!example\.)[\w-]+\.[A-Za-z][\w.]*/.test(src.replace(/https?:\/\/\S+/g, '')))
       add('SECRET_MAIL', f, 'メールアドレスらしき文字列が直書きされている');
   }
 
@@ -60,9 +68,16 @@ export function inspect(files) {
     // 外部から取る「実行コード」は 0 バイトが目標。塞がれると機能が黙って壊れる
     for (const m of src.matchAll(/<script[^>]+src\s*=\s*["'](https?:)?\/\/([^"']+)["'][^>]*>/gi))
       add('DEP_CDN_SCRIPT', f, '実行コードを外部から読んでいる: ' + m[2].split('/')[0]);
-    // 残る外部資産（スタイル）は版の固定を要求する
-    for (const m of src.matchAll(/<link[^>]+href\s*=\s*["']https?:\/\/([^"']+)["'][^>]*>/gi)) {
-      const url = m[1];
+    // 残る外部資産（スタイル）は版の固定を要求する。
+    // 見るのは rel="stylesheet" だけ。<link> にはほかに canonical・icon・
+    // manifest などがあり、それらは「版を固定する」対象ではない。
+    // rel と href はどちらが先に書かれていてもよいので、タグ全体から探す。
+    for (const m of src.matchAll(/<link\b[^>]*>/gi)) {
+      const tag = m[0];
+      if (!/\brel\s*=\s*["']?stylesheet\b/i.test(tag)) continue;
+      const href = tag.match(/\bhref\s*=\s*["'](https?:\/\/[^"']+)["']/i);
+      if (!href) continue;                                   // 自サイト内の相対パスは対象外
+      const url = href[1].replace(/^https?:\/\//, '');
       if (/fonts\.googleapis\.com|fonts\.gstatic\.com/.test(url)) continue;  // フォントは見た目だけ
       if (!/@\d+\.\d+\.\d+|\/\d+\.\d+\.\d+\//.test(url))
         add('DEP_UNPINNED', f, '外部スタイルの版が固定されていない: ' + url.split('/')[0]);
