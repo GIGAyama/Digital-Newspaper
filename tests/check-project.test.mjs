@@ -24,6 +24,15 @@ test('秘密情報', () => {
   hit({ 'a.gs': 'const to = "sensei@school.ed.jp";' }, 'SECRET_MAIL');
   // URL の中の文字列をメールと読み違えない
   miss({ 'a.html': '<a href="https://lh3.googleusercontent.com/d/abc">x</a>' }, 'SECRET_MAIL');
+  // npm の版指定をメールと読み違えない（"clasp@3.3.0" が引っかかっていた）
+  miss({ 'package.json': '{"scripts":{"x":"npm install @google/clasp@3.3.0"}}' }, 'SECRET_MAIL');
+  // 数字を含むドメインは今までどおり拾う
+  hit({ 'a.gs': 'const to = "sensei@school2.ed.jp";' }, 'SECRET_MAIL');
+  // 法務ページの問い合わせ先は「載っているべきもの」。秘密の漏えいではない
+  miss({ 'privacy.html': '<p>お問い合わせ: madoguchi@school.ed.jp</p>' }, 'SECRET_MAIL');
+  miss({ 'terms.html': '<p>お問い合わせ: madoguchi@school.ed.jp</p>' }, 'SECRET_MAIL');
+  // 名前が似ているだけの別ファイルは、対象から外さない
+  hit({ 'my-privacy.html': '<p>madoguchi@school.ed.jp</p>' }, 'SECRET_MAIL');
 });
 
 test('依存', () => {
@@ -32,6 +41,18 @@ test('依存', () => {
   hit({ 'a.html': '<script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>' }, 'DEP_CDN_SCRIPT');
   // 自分側に持っていれば通す
   miss({ 'a.html': '<script>/* 同梱 */</script>' }, 'DEP_CDN_SCRIPT');
+  // 版の固定されていない外部スタイルは拾う
+  hit({ 'a.html': '<link rel="stylesheet" href="https://unpkg.com/some/pkg.css">' }, 'DEP_UNPINNED');
+  // 版が固定されていれば通す
+  miss({ 'a.html': '<link rel="stylesheet" href="https://unpkg.com/@picocss/pico@1.5.10/css/pico.min.css">' }, 'DEP_UNPINNED');
+  // rel と href の順が逆でも見る
+  hit({ 'a.html': '<link href="https://unpkg.com/some/pkg.css" rel="stylesheet">' }, 'DEP_UNPINNED');
+  // canonical はスタイルではない（自サイトの canonical で赤くなっていた）
+  miss({ 'a.html': '<link rel="canonical" href="https://digital-newspaper.giga-school.com/privacy.html">' }, 'DEP_UNPINNED');
+  // icon や manifest も版を固定する対象ではない
+  miss({ 'a.html': '<link rel="icon" href="https://example.com/favicon.png">' }, 'DEP_UNPINNED');
+  // フォントは見た目だけなので通す
+  miss({ 'a.html': '<link href="https://fonts.googleapis.com/css2?family=X" rel="stylesheet">' }, 'DEP_UNPINNED');
   hit({ 'a.html': '<link rel="stylesheet" href="https://unpkg.com/@picocss/pico/css/pico.min.css">' }, 'DEP_UNPINNED');
   miss({ 'a.html': '<link rel="stylesheet" href="https://unpkg.com/@picocss/pico@1.5.10/css/pico.min.css">' }, 'DEP_UNPINNED');
   // フォントは見た目だけなので版を固定しなくてよい
