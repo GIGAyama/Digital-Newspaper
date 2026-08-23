@@ -1,0 +1,99 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  # プルリクエストでも品質ゲートを回す。
+  # main に入ってから「manifest の id が相対パスに戻っていた」と気づいても遅いので、
+  # レビューの段階で落とす。公開（build/deploy）は main への push のときだけ動く。
+  pull_request:
+    branches: [main]
+  # 失敗時にコミットなしで再デプロイできるよう手動実行を許可する
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  # ref ごとに分ける。1つの "pages" にまとめると、プルリクエストの検査が
+  # main のデプロイと同じ枠を取り合い、順番待ちで止まることがある。
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # 品質ゲート。一度直した項目（manifest の id、sw.js のキャッシュ削除範囲、
+  # 100vh の単独使用など）を次の改修で静かに壊し戻していないかを機械的に見張る。
+  # ここが落ちたら公開しない。
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      # 品質ゲートそのものが正しく動くかを先に確かめる。
+      # 検査が壊れていると「0件でした」が意味を持たないため、順序を入れ替えない。
+      - name: 検査そのものを確かめる（わざと壊した入力で）
+        run: npm test
+
+      - name: 品質ゲート
+        run: npm run check
+
+      - name: SW の版が中身と一致しているか
+        run: npm run build:sw -- --check
+
+  # ビルド（成果物のアップロード）とデプロイをジョブとして分ける。
+  # 1つのジョブにまとめていると「Re-run failed jobs」のたびに
+  # github-pages という同名の成果物が同じ実行に追加され、
+  # actions/deploy-pages が
+  #   Multiple artifacts named "github-pages" were unexpectedly found
+  # で必ず失敗するようになる（成果物は上書きされないため再実行するほど増える）。
+  # 分割しておけば再実行の対象は deploy だけになり、成果物は1つのまま保たれる。
+  build:
+    needs: check
+    # プルリクエストでは公開しない。検査だけを通す。
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          # Pages側の反映待ちは通常20秒ほどだが、混雑時は数十分キューに残ることがある。
+          # 既定の10分では成果物のアップロードに成功していてもタイムアウトで失敗扱いになるため、
+          # 待ち時間を30分まで延ばす。
+          timeout: 1800000
+
+  # 正本（GIGAyama.github.io/standards/）との一致。コピーだけ直すと他リポジトリに修正が届かないため。
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: GIGAyama/GIGAyama.github.io
+          path: .standards-src
+      - name: 正本とのずれ検知
+        run: node .standards-src/standards/check-drift.mjs --standards .standards-src/standards

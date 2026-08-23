@@ -1,329 +1,2977 @@
 <!DOCTYPE html>
 <html lang="ja">
-
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>デジタルクラス新聞社｜ハサミもノリもいらない学級新聞アプリ</title>
-  <meta name="description" content="児童がタブレットから記事を送り、先生がチェックを入れて並べるだけで、A4 の学級新聞が縦書きで組み上がる無償のアプリです。Google アカウントが1つあれば、先生ご自身のドライブの中だけで動きます。">
-  <meta name="author" content="GIGAyama">
-  <meta name="theme-color" content="#8a3324">
-  <meta name="color-scheme" content="light dark">
-  <link rel="canonical" href="https://digital-newspaper.giga-school.com/">
 
+  <!-- ==========================================================
+       Content-Security-Policy
+
+       このアプリはサーバーを持たない。記事は端末どうしの直接通信（P2P）で
+       行き来し、ブラウザの中にだけ残る。だから「外へ持ち出す通路」を
+       あらかじめ塞いでおく価値が大きい。
+
+         default-src 'none'  … 明示したもの以外は何も取りに行かない
+         script-src 'self'   … 外部から実行コードを読まない（CDN 0 バイト）
+         connect-src         … PeerJS の仲介サーバー以外へは通信できない
+
+       connect-src に data: と blob: を入れてあるのは、端末に持っている
+       写真（data URL）に対して、再読み込みのときだけ connect-src 違反が
+       出るため。画面側では securitypolicyviolation が発火しないので、
+       どの経路が出しているかは特定できていない（Service Worker が
+       絡んでいる可能性が高い）。ただし data: と blob: は中身を自分で持つ
+       URL で、外へ送る先にはならないため、ここに入れても持ち出しは防げたまま。
+       入れないと、写真つきの記事があるだけでコンソールが赤くなり、
+       本物の問題が埋もれる。
+
+       'unsafe-inline' が残っているのは、この画面が1枚の HTML に
+       スタイルとスクリプトを直接書く形だからで、注入そのものは防げない。
+       ただし eval は使っておらず（'unsafe-eval' が無い）、外部スクリプトも
+       読まないので、仮に文字列を差し込まれても外へは出て行けない。
+       frame-ancestors は <meta> では効かない（HTTP ヘッダー専用）ため
+       入れていない。GitHub Pages ではヘッダーを足せないので、
+       埋め込み禁止は今の構成では実現できない。AUDIT.md を参照。
+       ========================================================== -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'none';
+    script-src 'self' 'unsafe-inline';
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src 'self' https://fonts.gstatic.com;
+    img-src 'self' data: blob:;
+    connect-src 'self' data: blob: https://0.peerjs.com wss://0.peerjs.com;
+    manifest-src 'self';
+    worker-src 'self';
+    base-uri 'none';
+    form-action 'none'">
+
+  <!-- インストールの合図は、ほかのどの読み込みよりも先に捕まえる。
+       外部フォントより後ろに置くと、通信の遅い端末で取りこぼして
+       「アプリに追加」のボタンが出なくなる。 -->
+  <script>
+    window.__deferredInstallPrompt = null;
+    addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault();
+      window.__deferredInstallPrompt = e;
+      dispatchEvent(new Event('pwa-installable'));
+    });
+    addEventListener('appinstalled', function () {
+      window.__deferredInstallPrompt = null;
+      dispatchEvent(new Event('pwa-installed'));
+    });
+  </script>
+
+  <!-- viewport-fit=cover は、iPad や画面に切り欠きのある端末で
+       安全領域（env(safe-area-inset-*)）を CSS から使えるようにするために要る。 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>デジタル・クラス新聞社</title>
+
+  <meta name="description" content="学級新聞をブラウザだけで作れる学習アプリ。記事を書いて端末どうしで送りあい、A4の紙面に組んで印刷できます。">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="GIGA school">
-  <meta property="og:title" content="デジタルクラス新聞社｜ハサミもノリもいらない学級新聞アプリ">
-  <meta property="og:description" content="児童がタブレットから記事を送り、先生がチェックを入れて並べるだけ。A4 の学級新聞が縦書きで組み上がります。Google アカウントが1つあれば動きます。">
-  <meta property="og:url" content="https://digital-newspaper.giga-school.com/">
-  <meta property="og:image" content="https://digital-newspaper.giga-school.com/docs/note/images/07-paper-initial.png">
   <meta property="og:locale" content="ja_JP">
-  <meta name="twitter:card" content="summary_large_image">
+  <meta property="og:title" content="デジタル・クラス新聞社">
+  <meta property="og:description" content="学級新聞をブラウザだけで作れる学習アプリ。記事を書いて端末どうしで送りあい、A4の紙面に組んで印刷できます。">
+  <meta property="og:url" content="https://digital-newspaper.giga-school.com/">
+  <meta name="twitter:card" content="summary">
+  <meta name="theme-color" content="#2c3e50">
+  <meta name="color-scheme" content="light">
+
+  <link rel="icon" href="favicon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="クラス新聞社">
+
+  <!-- フォントは見た目だけのもの。学校のネットワークで塞がれても
+       端末側のフォントに落ちるだけで、入力も送信も印刷もできる。 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;700&family=Noto+Sans+JP:wght@400;700&family=Yomogi&family=Kiwi+Maru:wght@400;500&family=BIZ+UDPGothic:wght@400;700&display=swap">
+
+  <!-- 用紙の向きは印刷のときにだけ効く。JavaScript から書き替える -->
+  <style id="dynamic-print-style"></style>
 
   <style>
+    /* =====================================================================
+       1. 変数と土台
+       ===================================================================== */
     :root {
-      color-scheme: light dark;
-      --bg: #ffffff; --surface: #f7f5f2; --surface-strong: #efe9e3;
-      --text: #1c1917; --text-muted: #45403c; --accent: #8a3324;
-      --link: #9a3412; --link-visited: #6b3d8f; --border: #d6cec6;
-      --code-bg: #efeae5; --callout-bg: #fbf3ef;
-      --warn-bg: #fdf2e6; --warn-border: #a35200;
-      --btn-text: #ffffff;
+      --bg: #eef1f5;
+      --card: #ffffff;
+      --ink: #1f2933;
+      --primary: #2c3e50;
+      --line: #d9dee5;
+
+      /* 白い文字を載せる面は、もとの色のままでは 4.5:1 に届かない。
+         色相は変えず1〜2段濃くした版を用意し、文字が乗るところだけ使う。 */
+      --blue:        #3498db;   /* 面の飾りにだけ使う。文字は載せない */
+      --blue-d:      #2471a3;   /* 白文字を載せて 5.30 */
+      --green-d:     #1e8449;   /* 白文字を載せて 4.72 */
+      --red-d:       #c0392b;   /* 白文字を載せて 5.44 */
+      --orange-d:    #af601a;   /* 白文字を載せて 4.66 */
+      --purple-d:    #7d3c98;
+      --muted:       #5f6368;   /* 白地で 6.05 */
+
+      --fs-body:  clamp(15px, 0.4vw + 13.5px, 17px);
+      --fs-h1:    clamp(18px, 1.2vw + 14px, 24px);
+      --fs-lead:  clamp(17px, 0.8vw + 14px, 21px);
+
+      /* ソフトキーボードが出ているぶんの高さ。visualViewport から入れる */
+      --kb-inset: 0px;
+
+      /* 紙面（テーマで上書きする） */
+      --paper-bg: white;
+      --paper-text: #111;
+      --paper-border: none;
+      --layout-accent: #333;
+      --paper-padding: 12mm;
+      --base-font-size: 12px;
+      --col-base-px: 200px;
     }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #16151a; --surface: #201e24; --surface-strong: #2a272f;
-        --text: #eae7e2; --text-muted: #b3aca5; --accent: #f0a58c;
-        --link: #f3ab93; --link-visited: #d6b6f5; --border: #403c46;
-        --code-bg: #2a272f; --callout-bg: #241f22;
-        --warn-bg: #2a2118; --warn-border: #e0a35c;
-        --btn-text: #16151a;
+
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+    /* hidden 属性を、クラスの display より強くする。
+       ブラウザ既定の [hidden]{display:none} は要素セレクタ相当の強さしかなく、
+       .photo-preview{display:block} のようなクラス指定に負ける。
+       負けると「写真を消したのに、こわれた画像の枠が残る」ことになる。 */
+    [hidden] { display: none !important; }
+
+    body {
+      margin: 0;
+      font-family: "BIZ UDPGothic", "Hiragino Kaku Gothic ProN", "Noto Sans JP", system-ui, sans-serif;
+      font-size: var(--fs-body);
+      line-height: 1.7;
+      background: var(--bg);
+      color: var(--ink);
+      /* 児童が画面を連打するので、素早い連打で勝手に拡大するのだけ止める。
+         二本指で広げる余地は残す（見えづらい子が拡大できなくなるため）。 */
+      touch-action: manipulation;
+      /* 切り欠きのある端末やホームバーに、中身が潜り込まないようにする */
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+    }
+
+    /* 画面いっぱいに広げるものは 100vh ではなく 100dvh を使う。
+       iPad の Safari と Android の Chrome では、アドレスバーが出入りするぶん
+       100vh が実際の表示領域より大きくなり、いちばん下のボタンが隠れて押せなくなる。 */
+    .full-viewport { height: 100dvh; }
+    @supports not (height: 100dvh) {
+      .full-viewport { height: 100vh; }
+    }
+
+    /* ふりがな。色のついた面の上では下の文字と同じ色を継がせる。
+       決め打つと、面の色を変えたときにここだけ取り残される。 */
+    ruby { ruby-position: over; }
+    rt { font-size: 0.55em; font-weight: normal; color: #5f6368; letter-spacing: 0; }
+    button rt, a rt, .tag-label rt, .mode-tab rt, .chip rt,
+    [class*="btn"] rt, .badge rt { color: inherit; }
+
+    /* キーボードで操作しているときだけ、はっきりした枠を出す */
+    :focus-visible { outline: 3px solid #1f4e8c; outline-offset: 2px; }
+
+    .skip-link {
+      position: absolute; left: -9999px; top: 0; z-index: 5000;
+      background: var(--primary); color: #fff; padding: 12px 20px; border-radius: 0 0 8px 0;
+      min-height: 44px; display: inline-flex; align-items: center;
+    }
+    .skip-link:focus { left: 0; }
+
+    .visually-hidden {
+      position: absolute; width: 1px; height: 1px; margin: -1px;
+      padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+    }
+
+    /* 動きに酔いやすい子・前庭障害のある子のための設定を尊重する。
+       .01ms であって 0 ではない。0 にすると fill-mode: forwards が効かなくなり、
+       「動きを止める」つもりが「中身を消す」ことになる。 */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+        scroll-behavior: auto !important;
       }
     }
-    * { box-sizing: border-box; }
-    body {
-      font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP",
-        "Yu Gothic UI", "Meiryo", -apple-system, "Segoe UI", sans-serif;
-      font-size: 1.0625rem; line-height: 1.9; letter-spacing: .01em;
-      max-width: 820px; margin: 0 auto; padding: 24px 20px 48px;
-      color: var(--text); background: var(--bg); -webkit-text-size-adjust: 100%;
-    }
-    a { color: var(--link); text-decoration: underline; text-underline-offset: .18em; }
-    a:visited { color: var(--link-visited); }
-    :focus-visible { outline: 3px solid var(--link); outline-offset: 2px; border-radius: 3px; }
-    h1 { font-size: 1.9rem; line-height: 1.45; margin: 0 0 8px; }
-    h2 { font-size: 1.25rem; line-height: 1.6; margin: 2.4em 0 .6em; color: var(--accent); padding-bottom: 6px; border-bottom: 2px solid var(--border); }
-    h3 { font-size: 1.05rem; margin: 1.8em 0 .4em; }
-    p, li { color: var(--text); }
-    ul, ol { padding-left: 1.5em; }
-    li { margin-bottom: .4em; }
-    strong { font-weight: 700; }
-    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-size: .92em; overflow-wrap: anywhere; }
-    .lead { font-size: 1.1rem; color: var(--text-muted); margin: 0 0 20px; }
-    .meta { font-size: .95rem; color: var(--text-muted); margin: 0 0 24px; }
 
-    .callout { background: var(--callout-bg); border: 1px solid var(--border); border-left: 5px solid var(--accent); border-radius: 10px; padding: 16px 20px; margin: 20px 0; }
-    .callout--warn { background: var(--warn-bg); border-left-color: var(--warn-border); }
-    .callout :first-child { margin-top: 0; } .callout :last-child { margin-bottom: 0; }
-    .callout h2 { margin-top: 0; border: 0; padding: 0; font-size: 1.15rem; }
-
-    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 24px 0 8px; }
-    .btn { display: inline-block; padding: 11px 20px; border-radius: 10px; text-decoration: none; border: 1px solid var(--accent); font-weight: 600; line-height: 1.5; }
-    .btn--primary { background: var(--accent); color: var(--btn-text); }
-    .btn--primary:visited { color: var(--btn-text); }
-    .btn--ghost { color: var(--link); background: transparent; }
-
-    .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
-    figure { margin: 0; }
-    figure img { width: 100%; height: auto; display: block; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
-    figcaption { font-size: .9rem; color: var(--text-muted); margin-top: 6px; line-height: 1.7; }
-    .shot--wide { margin: 20px 0; }
-    @media (max-width: 560px) { .shots { grid-template-columns: 1fr; } }
-
-    .steps { counter-reset: step; list-style: none; padding-left: 0; }
-    .steps li { position: relative; padding-left: 2.4em; margin-bottom: .8em; }
-    .steps li::before {
-      counter-increment: step; content: counter(step);
-      position: absolute; left: 0; top: .35em;
-      width: 1.7em; height: 1.7em; border-radius: 50%;
-      background: var(--surface-strong); color: var(--accent);
-      font-size: .85em; font-weight: 700; line-height: 1.7em; text-align: center;
+    /* Windows のハイコントラストモード。色で区別している境目が消えるので枠線を出す */
+    @media (forced-colors: active) {
+      button, input, textarea, select, .card, .article-item, .mode-tab, .chip {
+        border: 1px solid ButtonText;
+      }
     }
 
-    .table-wrap { overflow-x: auto; margin: 16px 0; border: 1px solid var(--border); border-radius: 10px; }
-    table { border-collapse: collapse; width: 100%; font-size: .98rem; }
-    th, td { border-bottom: 1px solid var(--border); padding: 10px 14px; text-align: left; vertical-align: top; }
-    thead th { background: var(--surface-strong); white-space: nowrap; }
-    tbody tr:last-child th, tbody tr:last-child td { border-bottom: 0; }
-    @media screen and (max-width: 600px) {
-      .table-wrap { border: 0; border-radius: 0; overflow-x: visible; }
-      table { display: block; } thead { display: none; }
-      tbody, tbody tr, tbody th, tbody td { display: block; width: 100%; }
-      tbody tr { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
-      tbody th, tbody td { border-bottom: 0; padding: 0; }
-      tbody th { margin-bottom: 6px; font-weight: 600; }
-      td::before { content: attr(data-label); display: block; font-size: .85em; font-weight: 600; color: var(--text-muted); margin-bottom: 2px; }
+    /* =====================================================================
+       2. 上のバーと画面の切りかえ
+       ===================================================================== */
+    .top-bar {
+      position: sticky; top: 0; z-index: 900;
+      background: linear-gradient(135deg, #2c3e50, #34495e);
+      color: #fff;
+      padding: 10px clamp(10px, 2vw, 22px);
+      padding-top: calc(10px + env(safe-area-inset-top));
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      box-shadow: 0 2px 10px rgba(0,0,0,.18);
+    }
+    .bar-title {
+      font-weight: 700; font-size: var(--fs-h1); display: flex; align-items: center; gap: 8px;
+      text-shadow: 0 2px 4px rgba(0,0,0,.2); margin: 0;
+    }
+    .bar-spacer { flex: 1 1 auto; }
+
+    .mode-switch {
+      display: flex; gap: 4px; background: rgba(0,0,0,.28); padding: 4px; border-radius: 12px;
+    }
+    .mode-tab {
+      appearance: none; border: 1px solid transparent; background: transparent; color: #e8eef4;
+      font: inherit; font-weight: 700; cursor: pointer;
+      padding: 8px 14px; border-radius: 9px; min-height: 44px;
+      display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+    }
+    .mode-tab:hover { background: rgba(255,255,255,.12); }
+    .mode-tab[aria-selected="true"] { background: #fff; color: var(--primary); box-shadow: 0 2px 6px rgba(0,0,0,.25); }
+
+    .top-btn {
+      appearance: none; background: rgba(255,255,255,.15); color: #fff;
+      border: 1px solid rgba(255,255,255,.28); font: inherit; font-weight: 700;
+      padding: 8px 14px; border-radius: 8px; cursor: pointer; min-height: 44px;
+      display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+    }
+    .top-btn:hover { background: rgba(255,255,255,.26); }
+    .top-btn[hidden] { display: none; }
+
+    .chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: .8rem; font-weight: 700; padding: 3px 10px; border-radius: 999px;
+      background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.25);
+    }
+    .chip.on   { background: #1e8449; border-color: #27ae60; }
+    .chip.wait { background: #af601a; border-color: #d68910; }
+
+    /* =====================================================================
+       3. 共通の部品
+       ===================================================================== */
+    main { padding: clamp(12px, 2vw, 24px); padding-bottom: calc(40px + env(safe-area-inset-bottom) + var(--kb-inset)); }
+    .view[hidden] { display: none; }
+
+    .card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+      padding: clamp(16px, 2.2vw, 26px); box-shadow: 0 6px 18px rgba(0,0,0,.05);
+    }
+    h2.section-title {
+      margin: 0 0 16px; font-size: var(--fs-lead); color: var(--primary);
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    h3.col-title {
+      margin: 0 0 14px; font-size: 1.02rem; color: #3b4652;
+      border-bottom: 2px solid #e3e7ec; padding-bottom: 9px;
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
     }
 
-    footer { margin-top: 3em; padding-top: 16px; border-top: 1px solid var(--border); font-size: .95rem; color: var(--text-muted); }
-    footer a { margin-right: .2em; }
-    @media (max-width: 480px) { body { padding: 16px 14px 40px; } h1 { font-size: 1.55rem; } }
-    @media (prefers-reduced-motion: reduce) { * { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+    label.field-label {
+      display: block; font-weight: 700; color: var(--primary);
+      border-left: 4px solid var(--blue); padding-left: 10px; margin-bottom: 7px;
+    }
+
+    input[type="text"], input[type="date"], textarea, select {
+      width: 100%; font: inherit; color: var(--ink); background: #fff;
+      border: 2px solid #cbd5e0; border-radius: 8px; padding: 10px 12px;
+      min-height: 44px;
+    }
+    textarea { line-height: 1.8; resize: vertical; }
+    input::placeholder, textarea::placeholder { color: var(--muted); font-weight: normal; }
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--blue-d); outline: none; box-shadow: 0 0 0 4px rgba(36,113,163,.18);
+    }
+    input[type="range"] { width: 100%; min-height: 44px; }
+
+    .btn {
+      appearance: none; font: inherit; font-weight: 700; cursor: pointer;
+      border: none; border-radius: 10px; padding: 12px 18px; min-height: 44px;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      color: #fff; background: var(--primary);
+      /* ボタンの字を折り返させない。折り返すと「ク／リ／ア」のように
+         縦に積まれて、押すところが分からなくなる。 */
+      white-space: nowrap; flex: 0 0 auto;
+    }
+    .btn:hover { filter: brightness(1.08); }
+    .btn:active { transform: translateY(1px); }
+    .btn:disabled { background: #95a5a6; cursor: not-allowed; filter: none; }
+    .btn-wide { width: 100%; }
+    .btn-primary { background: var(--primary); }
+    .btn-send    { background: var(--green-d); }
+    .btn-sub     { background: #fff; color: var(--primary); border: 1px solid #b9c3cd; }
+    .btn-sub:hover { background: #f1f4f7; }
+    .btn-danger  { background: var(--red-d); }
+    .btn-purple  { background: var(--purple-d); }
+    .btn-blue    { background: var(--blue-d); }
+    .btn-print   { background: var(--green-d); font-size: 1.05rem; }
+    .btn-small   { padding: 6px 12px; font-size: .85rem; min-height: 44px; }
+
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn-row > .btn { flex: 1 1 auto; }
+
+    .hint { color: var(--muted); font-size: .88rem; margin: 6px 0 0; }
+    .danger-text { color: var(--red-d); font-weight: 700; }
+
+    /* =====================================================================
+       4. 「きじを かく」画面
+       ===================================================================== */
+    .write-grid {
+      display: grid; gap: clamp(12px, 2vw, 22px);
+      grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+      align-items: start;
+    }
+    /* minmax(0, 1fr) にしないと、ファイル選択ボタンのような
+       「最小幅の大きい部品」が列を押し広げ、画面ごと横スクロールになる
+       （実測：390px 幅で 14px はみ出していた）。 */
+    @media (max-width: 900px) { .write-grid { grid-template-columns: minmax(0, 1fr); } }
+    .write-grid > * { min-width: 0; }
+
+    .form-group { margin-bottom: 20px; }
+
+    .tag-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+    .tag-radio { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .tag-label {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      background: #f6f8fa; border: 1px solid #d5dbe1; border-radius: 10px;
+      padding: 12px 10px; min-height: 44px; cursor: pointer;
+      font-weight: 700; color: #3b4652; text-align: center;
+    }
+    .tag-label:hover { background: #e9edf1; }
+    .tag-radio:checked + .tag-label {
+      background: var(--blue-d); color: #fff; border-color: var(--blue-d);
+      box-shadow: 0 4px 10px rgba(36,113,163,.28);
+    }
+    .tag-radio:focus-visible + .tag-label { outline: 3px solid #1f4e8c; outline-offset: 2px; }
+
+    .photo-box {
+      border: 2px dashed #cbd5e0; border-radius: 10px; padding: 14px; background: #f8f9fb;
+      display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+    }
+    .photo-box input[type="file"] { font: inherit; max-width: 100%; }
+    .photo-preview {
+      width: 110px; height: 82px; border-radius: 8px; object-fit: cover;
+      border: 1px solid #ccc; background: #fff; display: block;
+    }
+    .char-count { float: right; font-weight: normal; color: var(--muted); font-size: .85rem; }
+
+    /* 自分の記事の一覧 */
+    .mine-list { max-height: 62vh; overflow-y: auto; overscroll-behavior: contain; display: grid; gap: 8px; }
+    .mine-item {
+      border: 1px solid #e3e7ec; border-left: 5px solid #cbd5e0; border-radius: 10px;
+      padding: 10px 12px; background: #fff; display: grid; gap: 6px;
+    }
+    .mine-item.is-open { border-left-color: var(--blue-d); background: #f4f9fd; }
+    .mine-item h4 { margin: 0; font-size: 1rem; }
+    .mine-meta { color: var(--muted); font-size: .84rem; display: flex; gap: 10px; flex-wrap: wrap; }
+    .badge {
+      display: inline-block; font-size: .76rem; font-weight: 700; padding: 2px 9px; border-radius: 999px;
+      background: #e6eaee; color: #3b4652;
+    }
+    .badge.sent  { background: #d6ebdd; color: #14603a; }
+    .badge.pub   { background: #fde9cf; color: #7a4310; }
+    .mine-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    .storage-meter { margin-top: 10px; }
+    .storage-meter progress { width: 100%; height: 12px; }
+
+    /* =====================================================================
+       5. 「しんぶんを つくる」画面（操作パネル）
+       ===================================================================== */
+    .desk-panel { margin-bottom: 22px; }
+    .config-section { display: flex; gap: 20px; flex-wrap: wrap; }
+    .config-col {
+      flex: 1 1 280px; min-width: 280px; background: #f7f9fb; border-radius: 12px; padding: 18px;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.05);
+    }
+    .config-col.wide { flex: 1.6 1 340px; }
+
+    /* min-width: 280px は、中くらいの画面で列を折り返させるために要る。
+       ただし画面そのものが 280px より狭いと、折り返しても入らず、
+       操作パネルごと横スクロールになる。狭いところでは横並びをやめて縦に積む。 */
+    @media (max-width: 760px) {
+      .config-section { display: block; }
+      .config-col { min-width: 0; margin-bottom: 14px; }
+      .config-col:last-child { margin-bottom: 0; }
+      .filter-row { flex-wrap: wrap; }
+      .filter-row input[type="date"] { min-width: 44px; flex: 1 1 100%; }
+    }
+
+    .control-group { margin-bottom: 13px; }
+    .control-group > label { display: block; font-weight: 700; font-size: .88rem; color: #4a5560; margin-bottom: 5px; }
+    .control-value { font-weight: normal; color: var(--blue-d); font-size: .88rem; margin-left: 6px; }
+
+    .filter-box { background: #e8f2fb; border-radius: 10px; padding: 10px; margin-bottom: 12px; }
+    .filter-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .filter-row:last-child { margin-bottom: 0; }
+    .filter-date { background: #fff; border: 1px solid #d5dbe1; border-radius: 8px; padding: 4px 8px; }
+    .filter-check { display: flex; align-items: center; gap: 6px; min-height: 44px; cursor: pointer; font-size: .88rem; }
+    .filter-check input { width: auto; min-height: 0; }
+
+    .article-list {
+      max-height: 460px; overflow-y: auto; overscroll-behavior: contain;
+      border: 1px solid var(--line); border-radius: 10px; padding: 8px; background: #fff;
+    }
+    .article-item {
+      background: #fff; border: 1px solid #eceff2; border-left: 5px solid transparent;
+      border-radius: 10px; padding: 11px; margin-bottom: 8px;
+    }
+    .article-item:last-child { margin-bottom: 0; }
+    .article-item.selected { border-left-color: var(--green-d); background: #f5fdf8; border-color: #cbe8d6; }
+    .article-item.is-free  { border-left-color: var(--purple-d); background: #fbf5fe; border-color: #e4d3ee; }
+    .article-item.dragging { opacity: .45; }
+    .article-item.from-peer { border-left-color: var(--blue-d); }
+    .article-item.from-peer.selected { border-left-color: var(--green-d); }
+
+    .item-main { display: flex; align-items: center; gap: 8px; }
+    .item-main > label { flex: 1; display: flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; }
+    .item-main input[type="checkbox"] { width: auto; min-height: 0; }
+    .item-title { font-weight: 700; }
+    /* もとは #6b7681 で比 4.48。13.4px の小さな字なので 4.5 が要る（実測で 1 段濃くした） */
+    .item-sub { font-size: .84rem; color: var(--muted); }
+    .drag-handle { color: #b8c0c9; cursor: default; }
+    .drag-enabled .drag-handle { cursor: grab; }
+
+    .item-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .input-wrapper { display: flex; align-items: center; gap: 6px; background: #f1f3f5; padding: 2px 10px; border-radius: 20px; }
+    .input-wrapper input {
+      border: none; background: transparent; padding: 4px 2px; min-height: 44px;
+      font-size: .86rem; width: 9rem;
+    }
+    .input-wrapper input:focus { box-shadow: none; }
+    .item-settings {
+      margin-top: 9px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+      background: #f7f9fb; padding: 7px 11px; border-radius: 8px; border: 1px solid #eceff2;
+    }
+    .item-settings label { display: flex; align-items: center; gap: 5px; min-height: 44px; font-size: .84rem; }
+    .item-settings select { width: auto; min-height: 44px; padding: 4px 7px; font-size: .84rem; }
+    .item-settings input[type="checkbox"] { width: auto; min-height: 0; }
+    .icon-btn {
+      appearance: none; background: none; border: none; cursor: pointer; font-size: 1.15rem;
+      min-width: 44px; min-height: 44px; border-radius: 8px;
+    }
+    .icon-btn:hover { background: #f1f3f5; }
+
+    /* =====================================================================
+       6. 紙面プレビュー（旧 admin.html から引き継ぎ）
+       ===================================================================== */
+    .paper-scroll { overflow-x: auto; padding-bottom: 10px; }
+    #paper-area {
+      background-color: var(--paper-bg); color: var(--paper-text); border: var(--paper-border);
+      margin: 0 auto; padding: var(--paper-padding);
+      box-shadow: 0 10px 40px rgba(0,0,0,.2);
+      overflow: hidden; position: relative;
+      background-image: var(--paper-bg-image); background-size: var(--paper-bg-size);
+      background-position: var(--paper-bg-pos); background-repeat: var(--paper-bg-repeat);
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+
+    .theme-default { --paper-bg: white; }
+    .theme-spring { --paper-bg: #fff0f5; --paper-text: #5d4037; --paper-border: 6px double #f8bbd0; --layout-accent: #ec407a; --paper-bg-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='%23f48fb1' d='M50 50 Q70 20 90 50 Q70 80 50 50 Q30 80 10 50 Q30 20 50 50'/%3E%3Ccircle cx='50' cy='50' r='10' fill='%23fce4ec'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='%23f06292' d='M50 50 Q70 20 90 50 Q70 80 50 50 Q30 80 10 50 Q30 20 50 50'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='%23f48fb1' d='M50 50 Q70 20 90 50 Q70 80 50 50 Q30 80 10 50 Q30 20 50 50'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='%23f06292' d='M50 50 Q70 20 90 50 Q70 80 50 50 Q30 80 10 50 Q30 20 50 50'/%3E%3C/svg%3E"); --paper-bg-size: 60px 60px, 50px 50px, 60px 60px, 50px 50px; --paper-bg-pos: top 10px left 10px, top 10px right 10px, bottom 10px right 10px, bottom 10px left 10px; --paper-bg-repeat: no-repeat; }
+    .theme-summer { --paper-bg: #e1f5fe; --paper-text: #01579b; --paper-border: 4px solid #4fc3f7; --layout-accent: #0288d1; --paper-bg-image: radial-gradient(circle at 50% 100%, #81d4fa 45%, transparent 50%), radial-gradient(circle at 50% 0%, #ffeb3b 40%, #ffc107 50%, transparent 60%); --paper-bg-size: 40px 20px, 120px 120px; --paper-bg-pos: bottom left, -40px -40px; --paper-bg-repeat: repeat-x, no-repeat; }
+    .theme-autumn { --paper-bg: #fffde7; --paper-text: #3e2723; --paper-border: 8px solid transparent; --layout-accent: #d84315; border-image: repeating-linear-gradient(45deg, #ffab91 0, #ffab91 10px, #ffccbc 10px, #ffccbc 20px) 10; --paper-bg-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='%23ff5722' d='M50 10 L60 40 L90 30 L70 60 L90 80 L60 70 L50 100 L40 70 L10 80 L30 60 L10 30 L40 40 Z'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='%23ffb300' d='M50 90 L50 60 Q80 10 20 10 Q60 10 50 60'/%3E%3C/svg%3E"); --paper-bg-size: 50px 50px, 40px 40px; --paper-bg-pos: top left, bottom right; --paper-bg-repeat: no-repeat; }
+    .theme-winter { --paper-bg: #fafafa; --paper-text: #455a64; --paper-border: 4px solid #cfd8dc; --layout-accent: #607d8b; --paper-bg-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath stroke='%2390a4ae' stroke-width='3' d='M50 0 L50 100 M0 50 L100 50 M15 15 L85 85 M15 85 L85 15'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle fill='%23b0bec5' cx='50' cy='50' r='5'/%3E%3Cpath stroke='%23b0bec5' stroke-width='2' d='M50 20 L50 80 M20 50 L80 50'/%3E%3C/svg%3E"); --paper-bg-size: 60px 60px, 30px 30px; --paper-bg-pos: 20px 20px, 60px 50px; --paper-bg-repeat: repeat-x; }
+    .theme-blackboard { --paper-bg: #2e4d3a; --paper-text: #fff; --paper-border: 12px ridge #795548; --layout-accent: #ffeb3b; background-image: radial-gradient(circle, rgba(255,255,255,.05) 1px, transparent 1px); background-size: 20px 20px; }
+    .theme-frame { --paper-bg: white; --paper-text: #000; --paper-border: 4px solid #000; --paper-padding: 15mm; --layout-accent: #000; border-radius: 4px; box-shadow: inset 0 0 0 2px white, inset 0 0 0 6px #000; }
+
+    .font-mincho { font-family: "Shippori Mincho", serif !important; }
+    .font-gothic { font-family: "Noto Sans JP", sans-serif !important; }
+    .font-ud     { font-family: "UD Digital Kyokasho-tai-R", "UD デジタル教科書体 R-R", "BIZ UDPGothic", sans-serif !important; }
+    .font-yomogi { font-family: "Yomogi", cursive !important; }
+    .font-kiwi   { font-family: "Kiwi Maru", serif !important; }
+
+    .page-a4-v { width: 210mm; height: 297mm; }
+    .page-a4-h { width: 297mm; height: 210mm; }
+    .newspaper-header {
+      text-align: center; border-bottom: 4px double var(--layout-accent);
+      margin-bottom: 15px; padding-bottom: 10px; height: 10%;
+      display: flex; flex-direction: column; justify-content: center; color: var(--paper-text);
+    }
+    .newspaper-title { font-size: 3rem; margin: 0; line-height: 1; letter-spacing: .1em; outline: none; }
+    .newspaper-date { text-align: right; font-size: .9rem; margin-top: 10px; outline: none; }
+    .articles-container { width: 100%; height: 88%; }
+    .article-box {
+      margin-bottom: 15px; padding: 8px; font-size: var(--base-font-size); text-align: justify;
+      break-inside: auto; overflow: visible; position: relative; max-width: 100%;
+      min-height: 2em; color: var(--paper-text);
+    }
+    .article-box::after { content: ""; display: block; clear: both; }
+    .article-title, .article-img-wrapper, .article-meta, .qr-container { break-inside: avoid; }
+
+    [contenteditable="true"]:hover { background-color: rgba(255,235,59,.2); outline: 1px dashed #ccc; cursor: text; border-radius: 4px; }
+    [contenteditable="true"]:focus { background-color: rgba(255,235,59,.3); outline: 2px solid var(--blue); border-radius: 4px; }
+
+    .article-title { font-weight: 700; font-size: 1.5em; line-height: 1.3; margin-bottom: 6px; display: block; color: var(--paper-text); }
+    .title-normal  .article-title { border-bottom: 2px solid var(--layout-accent); }
+    .title-outline .article-title { color: var(--paper-bg); text-shadow: 1px 1px 0 var(--paper-text), -1px -1px 0 var(--paper-text), 1px -1px 0 var(--paper-text), -1px 1px 0 var(--paper-text); border-bottom: 4px solid var(--paper-text); padding: 2px 5px; }
+    .title-solid   .article-title { background: var(--paper-text); color: var(--paper-bg); padding: 4px 10px; border-radius: 3px; }
+    .title-double  .article-title { border-bottom: 3px double var(--layout-accent); padding-bottom: 2px; }
+    .title-leftbar .article-title { border-left: 6px solid var(--layout-accent); padding-left: 10px; border-bottom: 1px solid rgba(0,0,0,.1); }
+    .title-marker  .article-title { background: linear-gradient(transparent 60%, rgba(255,235,59,.5) 60%); padding: 0 5px; display: inline; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+    .theme-blackboard .title-marker  .article-title { background: linear-gradient(transparent 60%, rgba(255,255,255,.3) 60%); }
+    .theme-blackboard .title-outline .article-title { text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff; color: #264d36; border-color: #fff; }
+
+    .article-meta { font-size: .8em; color: var(--paper-text); opacity: .8; margin-bottom: 5px; text-align: right; display: block; }
+    .article-body { line-height: 1.7; white-space: pre-wrap; font-size: 1em; overflow-wrap: break-word; }
+    .article-img-wrapper {
+      writing-mode: horizontal-tb; display: block; margin: 5px auto 8px; max-width: 100% !important;
+      overflow: hidden; border: 1px solid #ccc; background: #fff; border-radius: 2px; box-shadow: 0 2px 5px rgba(0,0,0,.1);
+    }
+    .article-img-wrapper img { width: 100%; height: 100%; display: block; object-fit: var(--local-fit, cover); object-position: center; }
+    .img-float-left  { float: left;  margin: 0 10px 5px 0; max-width: 50% !important; }
+    .img-float-right { float: right; margin: 0 0 5px 10px; max-width: 50% !important; }
+    .qr-container { display: inline-block; background: #fff; padding: 4px; border: 1px solid #ccc; margin: 5px 0 0 10px; text-align: center; vertical-align: top; border-radius: 4px; }
+    .qr-container canvas { display: block; }
+    .qr-container .qr-label { font-size: 8px; color: #333; margin-top: 2px; line-height: 1; font-family: sans-serif; font-weight: 700; letter-spacing: .05em; }
+
+    .vertical-mode { writing-mode: vertical-rl; text-orientation: upright; column-fill: auto; }
+    .vertical-mode .article-box { border-left: 1px solid rgba(0,0,0,.1); padding-left: 10px; margin-left: 10px; margin-bottom: 0; border-bottom: none !important; padding-bottom: 0; }
+    .vertical-mode .article-title { margin-left: 10px; margin-bottom: 0; }
+    .vertical-mode.title-normal  .article-title { border-bottom: none; border-left: 2px solid var(--layout-accent); padding-left: 5px; }
+    .vertical-mode.title-outline .article-title { border-left: 4px solid var(--paper-text); border-bottom: none; }
+    .vertical-mode.title-solid   .article-title { border-left: none; }
+    .vertical-mode.title-double  .article-title { border-bottom: none; border-left: 3px double var(--layout-accent); padding-left: 5px; }
+    .vertical-mode.title-leftbar .article-title { border-left: none; border-top: 6px solid var(--layout-accent); padding-top: 10px; border-bottom: none; border-right: 1px solid rgba(0,0,0,.1); padding-right: 10px; }
+    .vertical-mode.title-marker  .article-title { background: linear-gradient(to left, transparent 60%, rgba(255,235,59,.5) 60%); }
+    .theme-blackboard .vertical-mode.title-marker .article-title { background: linear-gradient(to left, transparent 60%, rgba(255,255,255,.3) 60%); }
+    .vertical-mode .img-float-left  { float: left;  margin: 0 0 10px 10px; }
+    .vertical-mode .img-float-right { float: right; margin: 10px 0; }
+    .vertical-mode .qr-container { margin: 0 5px 5px 0; writing-mode: horizontal-tb; }
+
+    .cols-1 { column-count: 1; }
+    .cols-2 { column-count: 2; column-gap: 30px; column-rule: 1px solid #ccc; }
+    .cols-3 { column-count: 3; column-gap: 20px; column-rule: 1px solid #ccc; }
+    .cols-4 { column-count: 4; column-gap: 15px; column-rule: 1px solid #ccc; }
+
+    /* =====================================================================
+       7. モーダルとトースト
+       ===================================================================== */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 2000;
+      align-items: center; justify-content: center; padding: 16px;
+      opacity: 0; transition: opacity .25s;
+    }
+    .modal-overlay.show { opacity: 1; }
+    .modal-box {
+      background: #fff; border-radius: 14px; width: 100%; max-width: 460px;
+      max-height: calc(100dvh - 32px); overflow-y: auto;
+      padding: 22px; box-shadow: 0 20px 50px rgba(0,0,0,.3);
+      transform: scale(.94); transition: transform .25s;
+    }
+    @supports not (max-height: 100dvh) { .modal-box { max-height: calc(100vh - 32px); } }
+    .modal-overlay.show .modal-box { transform: scale(1); }
+    .modal-box.wide { max-width: 560px; }
+    .modal-header { font-weight: 700; font-size: 1.18rem; color: var(--primary); border-bottom: 2px solid #f1f1f1; padding-bottom: 11px; margin-bottom: 14px; }
+    .modal-body { margin-bottom: 20px; }
+    .modal-body label { display: block; font-weight: 700; margin: 12px 0 5px; }
+    .modal-footer { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+    .modal-btn { appearance: none; font: inherit; font-weight: 700; cursor: pointer; border: none; border-radius: 8px; padding: 10px 18px; min-height: 44px; }
+    .btn-cancel { background: #e2e6ea; color: #43505c; }
+    .btn-confirm { background: var(--blue-d); color: #fff; }
+    .btn-go { background: var(--green-d); color: #fff; }
+
+    .toast-container {
+      position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom));
+      z-index: 3000; display: flex; flex-direction: column; gap: 10px; max-width: min(340px, 88vw);
+    }
+    .toast {
+      background: #37424d; color: #fff; padding: 13px 18px; border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,.25); font-weight: 700;
+      display: flex; align-items: center; gap: 10px;
+      transform: translateX(120%); transition: transform .3s;
+    }
+    .toast.show { transform: translateX(0); }
+    .toast-success { background: var(--green-d); }
+    .toast-error   { background: var(--red-d); }
+    .toast-info    { background: var(--blue-d); }
+
+    /* 接続の画面 */
+    .room-code {
+      font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+      font-size: clamp(26px, 6vw, 40px); font-weight: 700; letter-spacing: .12em;
+      text-align: center; background: #eef4fa; border: 2px dashed var(--blue-d);
+      border-radius: 12px; padding: 14px 8px; color: var(--primary); user-select: all;
+      overflow-wrap: anywhere;
+    }
+    .conn-choice { border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+    .conn-choice h4 { margin: 0 0 4px; font-size: 1rem; color: var(--primary); }
+    #roomCodeInput { text-transform: uppercase; font-family: ui-monospace, Consolas, monospace; letter-spacing: .1em; }
+
+    .tag-manage-list { max-height: 300px; overflow-y: auto; border: 1px solid #eceff2; border-radius: 8px; padding: 6px; margin-bottom: 12px; }
+    .tag-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+    .tag-row input { min-height: 44px; font-size: .9rem; }
+
+    /* 更新のお知らせ */
+    #updateBar {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 3200;
+      background: var(--orange-d); color: #fff; padding: 12px 16px;
+      padding-bottom: calc(12px + env(safe-area-inset-bottom));
+      display: none; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; font-weight: 700;
+    }
+    #updateBar.show { display: flex; }
+
+    /* =====================================================================
+       8. 印刷
+       ===================================================================== */
     @media print {
-      :root { --bg:#fff; --surface:#fff; --surface-strong:#fff; --text:#000; --text-muted:#333; --accent:#000; --link:#000; --link-visited:#000; --border:#999; --code-bg:#fff; --callout-bg:#fff; --warn-bg:#fff; }
-      body { max-width: none; font-size: 10.5pt; }
-      .actions, .shots, .shot--wide { display: none; }
+      body { margin: 0; padding: 0; background: #fff; }
+      .top-bar, .desk-panel, .modal-overlay, .toast-container, .view-write,
+      #updateBar, .skip-link, .no-print { display: none !important; }
+      main { padding: 0; }
+      .paper-scroll { overflow: visible; }
+      #paper-area { box-shadow: none; margin: 0 !important; overflow: hidden; page-break-after: avoid; }
     }
   </style>
 </head>
 
 <body>
-  <main>
-    <h1>デジタルクラス新聞社</h1>
-    <p class="lead">児童がタブレットから記事を送り、先生はチェックを入れて順番を決めるだけ。
-      A4 一枚の学級新聞が、縦書きの段組みで組み上がります。小学校の教員が作った無償のアプリです。</p>
-    <p class="meta">Google アカウントが1つあれば動きます。サーバーの費用も、外部サービスの契約もありません。</p>
+  <a class="skip-link" href="#main">ほんぶんへ すすむ</a>
+  <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="false"></div>
 
-    <div class="callout callout--warn">
-      <h2>このページからは、新聞を作れません</h2>
-      <p>このアプリは、<strong>先生おひとりずつが、ご自分の Google アカウントで公開して使う</strong>形です。
-        共通の入口はありません。</p>
-      <ul>
-        <li><strong>児童のみなさん</strong>は、先生から配られた URL を開いてください。このページではありません。</li>
-        <li><strong>先生方</strong>は、下の「入れかた」の手順で、ご自分の学級の URL を作ってください。10 分ほどで終わります。</li>
-      </ul>
-      <p>記事も写真も、公開した先生ご自身の Google ドライブの中だけに入ります。
-        制作者を含め、ほかの誰のところにもデータは行きません。</p>
+  <header class="top-bar">
+    <h1 class="bar-title">📰 デジタル・クラス<ruby>新<rt>しん</rt>聞<rt>ぶん</rt>社<rt>しゃ</rt></ruby></h1>
+
+    <div class="mode-switch" role="tablist" aria-label="がめんの きりかえ">
+      <button type="button" class="mode-tab" id="tabWrite" role="tab" aria-selected="true" aria-controls="viewWrite">
+        ✍️ <ruby>記<rt>き</rt>事<rt>じ</rt></ruby>を かく
+      </button>
+      <button type="button" class="mode-tab" id="tabDesk" role="tab" aria-selected="false" aria-controls="viewDesk">
+        🗞️ <ruby>新<rt>しん</rt>聞<rt>ぶん</rt></ruby>を つくる
+      </button>
     </div>
 
-    <div class="actions">
-      <a class="btn btn--primary" href="https://giga-school.com/apps/digital-newspaper/">くわしい紹介を読む</a>
-      <a class="btn btn--ghost" href="https://github.com/GIGAyama/Digital-Newspaper" rel="noopener">コードを見る（GitHub）</a>
-    </div>
+    <span class="bar-spacer"></span>
 
-    <h2>どんなアプリか</h2>
-    <p>学級新聞を作ろう、と決めたところまではよかった。そのあとが大変だった。そんな覚えはありませんか。
-      原稿用紙を配って、集めて、画用紙に割り付けて、ハサミで切って、ノリで貼る。
-      子どもが書いた文章そのものは、とっくにできあがっています。
-      それを一枚の紙にする作業だけで、放課後がいくつも消えていきます。
-      このアプリが引き受けるのは、その<strong>「割り付けて、貼る」ところだけ</strong>です。</p>
+    <button type="button" class="top-btn" id="btnConnect">
+      🔗 つながる <span class="chip" id="connChip">オフライン</span>
+    </button>
+    <button type="button" class="top-btn pwa-installable" id="btnInstall" hidden>
+      ⬇️ <ruby>追<rt>つい</rt>加<rt>か</rt></ruby>
+    </button>
+  </header>
 
-    <div class="shots">
-      <figure>
-        <img src="docs/note/images/01-child-form.png" width="780" height="3600"
-             alt="児童の記者ページ。上からタイトル、本文、記者名、タグ、写真の記入欄が縦に並んでいる" decoding="async">
-        <figcaption>子どもが開く画面は、記入欄が5つ並んだ一枚きり。漢字にはふりがなが付いています。</figcaption>
-      </figure>
-      <figure>
-        <img src="docs/note/images/06-admin-list.png" width="1240" height="2400"
-             alt="先生の記事一覧。届いた記事が新しい順に並び、それぞれにチェックボックスが付いている" loading="lazy" decoding="async">
-        <figcaption>先生の画面には届いた記事が新しい順に並びます。チェックを入れた記事だけが紙面に載ります。</figcaption>
-      </figure>
-    </div>
+  <main id="main">
 
-    <figure class="shot--wide">
-      <img src="docs/note/images/07-paper-initial.png" width="2000" height="2520"
-           alt="組み上がった学級新聞の紙面。縦書き三段で、見出しと本文と写真が並んでいる" loading="lazy" decoding="async">
-      <figcaption>設定を何も触らないまま開いても、もう縦書き三段の新聞の形になっています。
-        紙面の文字は、その上でそのまま打ち直せます。</figcaption>
-    </figure>
+    <!-- ================================================================
+         画面A：記事をかく
+         ================================================================ -->
+    <section class="view view-write" id="viewWrite" role="tabpanel" aria-labelledby="tabWrite">
+      <div class="write-grid">
 
-    <h3>使うときの流れ</h3>
-    <ol class="steps">
-      <li>先生が URL を配ります。児童は名前とタイトルと本文を入れて送ります。写真も1枚付けられます。</li>
-      <li>先生が編集室を開くと、届いた記事が一覧に並びます。載せたいものにチェックを入れます。</li>
-      <li>ドラッグで順番を入れかえ、段の数・文字の大きさ・テーマを選びます。紙面はその場で組み直ります。</li>
-      <li>紙面の上で、新聞名・発行日・見出し・本文をそのまま打ち直します。</li>
-      <li>ブラウザの印刷から A4 に刷るか、PDF で保存します。</li>
-    </ol>
+        <div class="card">
+          <h2 class="section-title">✍️ <ruby>記<rt>き</rt>事<rt>じ</rt></ruby>を かく</h2>
 
-    <h2>入れかた</h2>
-    <p>スプレッドシートをコピーして、公開の設定をするだけです。
-      準備するものは Google アカウント1つ。ふだんお使いの学校のアカウントで構いません。
-      10分ほどで終わります。</p>
+          <form id="articleForm" novalidate>
+            <div class="form-group">
+              <label class="field-label" for="fTitle">① <ruby>記<rt>き</rt>事<rt>じ</rt></ruby>の タイトル</label>
+              <input type="text" id="fTitle" maxlength="80" placeholder="れい：運動会で 練習の せいかを 出せたよ" required>
+            </div>
 
-    <div class="actions">
-      <a class="btn btn--primary" href="https://docs.google.com/spreadsheets/d/12fUzOBaCbdeb-3QQrZBavh8zKtWTt7FkK1eoGCh41Ps/copy" rel="noopener">スプレッドシートをコピーして始める</a>
-    </div>
+            <div class="form-group">
+              <label class="field-label" for="fBody">
+                ② <ruby>本<rt>ほん</rt>文<rt>ぶん</rt></ruby>
+                <span class="char-count" id="bodyCount">0字</span>
+              </label>
+              <textarea id="fBody" rows="8" maxlength="4000" placeholder="いつ、どこで、だれが、なにを したかな？ くわしく 書いてみよう。" required></textarea>
+            </div>
 
-    <ol class="steps">
-      <li>上のボタンを押し、「コピーを作成」を選びます。ご自分のドライブにファイルができます。</li>
-      <li>できたファイルを開き、上の「拡張機能」＞「Apps Script」を開きます。</li>
-      <li>右上の「デプロイ」＞「新しいデプロイ」＞種類は「ウェブアプリ」。
-        <strong>実行するユーザーは「自分」、アクセスできるユーザーは「同一ドメインの全員」</strong>を選んでください。</li>
-      <li>スプレッドシートに戻って再読み込みすると、上に「📰 新聞システム」メニューが出ます。
-        <strong>「2. 先生のメールアドレスを設定」で、ご自分のアカウントを登録します。</strong></li>
-      <li>「3. 先生用管理画面を開く」を選ぶと、先生用と児童用の2つの URL が出ます。
-        児童に配るのは<strong>児童用のほうだけ</strong>です。</li>
-    </ol>
+            <div class="form-group">
+              <label class="field-label" for="fReporter">③ <ruby>記<rt>き</rt>者<rt>しゃ</rt></ruby>の <ruby>名<rt>な</rt>前<rt>まえ</rt></ruby></label>
+              <input type="text" id="fReporter" maxlength="30" placeholder="じぶんの 名前" required>
+            </div>
 
-    <div class="callout">
-      <p><strong>コードは、コピーしたファイルの中に入っています。</strong>
-        貼り付ける作業はありません。記事もそのファイルの中に入るので、
-        どこにできたのかを探す必要もありません。</p>
-      <p>写真をためるドライブのフォルダは、最初の写真が届いたときに自動で作られます。
-        場所を決めたいときだけ、メニューの「1. 写真フォルダの設定」で指定してください。</p>
-    </div>
+            <div class="form-group">
+              <span class="field-label" id="tagLegend">④ タグ（<ruby>種<rt>しゅ</rt>類<rt>るい</rt></ruby>）</span>
+              <div class="tag-grid" id="tagGrid" role="radiogroup" aria-labelledby="tagLegend"></div>
+            </div>
 
-    <div class="callout callout--warn">
-      <p><strong>児童に URL を配る前に、先生が先に「2. 先生のメールアドレスを設定」を済ませてください。</strong>
-        登録が済むまで、編集室は<strong>誰も</strong>開けません（安全側に倒してあります）。
-        登録したアカウント以外は、URL を知っていても編集室に入れず、
-        記事一覧を取り出す関数も呼べません。画面を隠すだけでなく、サーバー側で確かめています。</p>
-    </div>
+            <div class="form-group">
+              <label class="field-label" for="fPhoto">⑤ <ruby>写<rt>しゃ</rt>真<rt>しん</rt></ruby>（<ruby>無<rt>な</rt></ruby>くても よい）</label>
+              <div class="photo-box">
+                <img id="photoPreview" class="photo-preview" alt="えらんだ写真" hidden>
+                <div style="flex:1; min-width:12rem;">
+                  <!-- ブラウザ標準のファイル選択ボタンは高さが 26px しか取れず、
+                       44px の当たり判定に届かない。本体は隠し、ボタンから開く。 -->
+                  <input type="file" id="fPhoto" accept="image/*" class="visually-hidden" tabindex="-1" aria-hidden="true">
+                  <button type="button" class="btn btn-sub" id="btnPhotoPick">
+                    📷 <ruby>写<rt>しゃ</rt>真<rt>しん</rt></ruby>を えらぶ
+                  </button>
+                  <p class="hint" id="photoNote">えらぶと、<ruby>小<rt>ちい</rt></ruby>さくしてから この たんまつに しまいます。</p>
+                </div>
+                <button type="button" class="btn btn-sub" id="btnPhotoClear" hidden>
+                  <ruby>写<rt>しゃ</rt>真<rt>しん</rt></ruby>を けす
+                </button>
+              </div>
+            </div>
 
-    <div class="callout callout--warn">
-      <p><strong>コピーできないときは、貼り付けでも入ります。</strong>
-        学校のポリシーで、外部のファイルのコピーが禁じられていることがあります。
-        その場合は <a href="https://github.com/GIGAyama/Digital-Newspaper#readme" rel="noopener">README の「B. ファイルを貼り付ける」</a>
-        をご覧ください。<code>Code.gs</code> と <code>post.html</code> と <code>admin.html</code> の3つを
-        Apps Script に貼る手順で、入るものは同じです。</p>
-    </div>
+            <div class="btn-row">
+              <button type="submit" class="btn btn-primary" id="btnSave">
+                💾 <ruby>保<rt>ほ</rt>存<rt>ぞん</rt></ruby>する
+              </button>
+              <button type="button" class="btn btn-send" id="btnSend">
+                📤 <ruby>送<rt>おく</rt></ruby>る
+              </button>
+              <button type="button" class="btn btn-sub" id="btnNew">
+                ✨ <ruby>新<rt>あたら</rt></ruby>しく かく
+              </button>
+            </div>
+            <p class="hint" id="sendHint"></p>
+          </form>
+        </div>
 
-    <p>入れかたの全文は
-      <a href="https://github.com/GIGAyama/Digital-Newspaper#readme" rel="noopener">README</a>、
-      当日の進め方は
-      <a href="https://github.com/GIGAyama/Digital-Newspaper/blob/main/MANUAL.md" rel="noopener">操作マニュアル</a>
-      にあります。作った理由と画面ごとの説明は
-      <a href="https://giga-school.com/apps/digital-newspaper/">紹介記事</a>にまとめました。</p>
+        <div class="card">
+          <h2 class="section-title">
+            📚 わたしの <ruby>記<rt>き</rt>事<rt>じ</rt></ruby>
+            <span class="badge" id="mineCount">0本</span>
+          </h2>
+          <div class="btn-row" style="margin-bottom:12px;">
+            <button type="button" class="btn btn-sub btn-small" id="btnExport">
+              ⬇️ ファイルに <ruby>書<rt>か</rt></ruby>き<ruby>出<rt>だ</rt></ruby>す
+            </button>
+            <button type="button" class="btn btn-sub btn-small" id="btnImport">
+              ⬆️ ファイルから <ruby>読<rt>よ</rt></ruby>みこむ
+            </button>
+            <input type="file" id="importFile" accept="application/json,.json" class="visually-hidden" tabindex="-1" aria-hidden="true">
+          </div>
+          <div class="mine-list" id="mineList"></div>
+          <div class="storage-meter">
+            <label for="storageBar" class="hint" id="storageLabel">この たんまつに ためた りょう</label>
+            <progress id="storageBar" max="100" value="0"></progress>
+          </div>
+        </div>
 
-    <h2>シートを点検する・直す</h2>
-    <p>コピーしたスプレッドシートを開くと、上のメニューに「📰 新聞システム」が出ます。</p>
-    <ul>
-      <li><strong>4. シートを点検する</strong> … 中の作りがアプリの想定どおりかを確かめます。何も書き換えません。</li>
-      <li><strong>5. シートを直す</strong> … 直せるものだけを、確認を取ってから直します。
-        直すのは「無いシートを作る」「空のシートに見出しを書く」「見出しの書き方をそろえる」
-        「足りない列を右端に足す」の4つだけで、<strong>列を消したり動かしたりはしません</strong>。</li>
-    </ul>
-    <p>記事の読み書きは<strong>見出しの名前</strong>で行います。列を並べ替えても動きますし、
-      メモ用の列を右に足していただいても構いません。
-      ただし見出しの行（1行目）を消すと、どの列が何なのか分からなくなります。
-      消してしまったときは点検メニューがその旨を伝えるので、1行目に行を挿して見出しを戻してください
-      （データが動く操作なので、アプリは自動では直しません）。</p>
+      </div>
+    </section>
 
-    <h2>情報担当の先生へ</h2>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr><th>項目</th><th>このアプリの場合</th></tr>
-        </thead>
-        <tbody>
-          <tr>
-            <th>フィルタリングで通すもの</th>
-            <td data-label="このアプリの場合">アプリ本体が置かれる <code>script.google.com</code> と、
-              紙面に写真を出すための <code>drive.google.com</code> です。
-              見た目のために書体（Google Fonts）と <code>unpkg.com</code> の CSS を読みますが、
-              どちらも届かなくても入力・送信・印刷はできます（実際に塞いだ状態で確かめています）。</td>
-          </tr>
-          <tr>
-            <th>外から読み込む実行コード</th>
-            <td data-label="このアプリの場合"><strong>0 バイト</strong>です。QR コードを作る部品はアプリの中に持っています。
-              以前は外部から読んでいて、塞がれると「枠は見えているのに中身が空の QR」が紙に刷られていました。</td>
-          </tr>
-          <tr>
-            <th>データの置き場所</th>
-            <td data-label="このアプリの場合">公開した先生ご自身のスプレッドシート1つと、ドライブのフォルダ1つだけ。
-              外部のサービスへは何も送りません。制作者もデータを見られません。</td>
-          </tr>
-          <tr>
-            <th>児童のアカウント権限</th>
-            <td data-label="このアプリの場合">サーバー側の処理は「デプロイした先生」として動きます。
-              <strong>児童は先生のスプレッドシートにもドライブにもアクセス権が要りません。</strong>
-              児童から見えるのは投稿画面だけです。</td>
-          </tr>
-          <tr>
-            <th>写真の公開範囲</th>
-            <td data-label="このアプリの場合">まず<strong>校内ドメイン内でリンクを知っている人だけ</strong>に限定します。
-              Google Workspace 以外のアカウントではその設定ができないため、その場合は<strong>非公開</strong>まで閉じ、
-              登録済みの先生にだけ閲覧権を渡します。どちらになったかは実行ログに残ります。</td>
-          </tr>
-          <tr>
-            <th>編集室に入れる人</th>
-            <td data-label="このアプリの場合">メニューで登録したメールアドレスだけです。
-              画面を隠すのではなく、サーバー側の関数ごとに確かめています。
-              未登録のうちは誰も入れません。</td>
-          </tr>
-          <tr>
-            <th>要求する権限</th>
-            <td data-label="このアプリの場合">このスプレッドシート、このアプリが作ったドライブのファイル、
-              スプレッドシートのメニュー、デプロイ URL の取得、メールアドレスの5つです。
-              ドライブ全体を読む権限は要求しません。</td>
-          </tr>
-          <tr>
-            <th>費用・アカウント登録</th>
-            <td data-label="このアプリの場合">どちらもありません。MIT ライセンスで公開しています。</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <!-- ================================================================
+         画面B：新聞をつくる
+         ================================================================ -->
+    <section class="view view-desk" id="viewDesk" role="tabpanel" aria-labelledby="tabDesk" hidden>
 
-    <h2>できないこと</h2>
-    <p>正直に書いておきます。</p>
-    <ul>
-      <li><strong>紙面は A4 一枚ぶんだけ</strong>です。枠からはみ出した記事は、画面にも印刷にも出ません。
-        段数・文字サイズ・写真の大きさで収めてください。</li>
-      <li><strong>承認の仕組みはありません。</strong>届いた記事は編集室にすべて出ます。
-        載せるかどうかはチェックで決まります。「不適切な記事が届かない」わけではありません。</li>
-      <li><strong>紙面の上で直した文章は、スプレッドシートに戻りません。</strong>
-        「一時保存」しておかないと、再読み込みで消えます。</li>
-      <li><strong>児童が自分の記事をあとから直したり消したりする画面はありません。</strong>
-        紙面を組んでいる最中に元の文章が変わるのを避けるためです。直しは先生が紙面の上で行います。</li>
-      <li><strong>記事を削除する機能はありません。</strong>消すにはスプレッドシートの行を直接消します。</li>
-      <li><strong>オフラインでは動きません。</strong><code>script.google.com</code> に接続できないと開けません。</li>
-      <li>キーワード検索が見るのはタイトルと記者名だけで、本文は対象にしません。</li>
-    </ul>
+      <div class="card desk-panel">
+        <h2 class="section-title no-print">
+          🗞️ <ruby>新<rt>しん</rt>聞<rt>ぶん</rt></ruby>を つくる
+          <span class="bar-spacer"></span>
+          <button type="button" class="btn btn-sub btn-small" id="btnDeskSave">💾 <ruby>一<rt>いち</rt>時<rt>じ</rt></ruby><ruby>保<rt>ほ</rt>存<rt>ぞん</rt></ruby></button>
+          <button type="button" class="btn btn-sub btn-small" id="btnDeskLoad">📂 <ruby>呼<rt>よ</rt></ruby>び<ruby>出<rt>だ</rt></ruby>し</button>
+          <button type="button" class="btn btn-sub btn-small" id="btnTemplate">🎨 テンプレート</button>
+          <button type="button" class="btn btn-sub btn-small" id="btnTags">🏷️ タグ<ruby>設<rt>せっ</rt>定<rt>てい</rt></ruby></button>
+        </h2>
+
+        <div class="config-section">
+
+          <div class="config-col">
+            <h3 class="col-title">📐 レイアウト</h3>
+            <div class="control-group">
+              <label for="paperOri"><ruby>用<rt>よう</rt>紙<rt>し</rt></ruby>の むき</label>
+              <select id="paperOri"><option value="v">たて（A4）</option><option value="h">よこ（A4）</option></select>
+            </div>
+            <div class="control-group">
+              <label for="textDir"><ruby>文<rt>も</rt>字<rt>じ</rt></ruby>の むき</label>
+              <select id="textDir"><option value="vertical">たて書き</option><option value="horizontal">よこ書き</option></select>
+            </div>
+            <div class="control-group">
+              <label for="colCount"><ruby>段<rt>だん</rt>組<rt>ぐ</rt></ruby>み</label>
+              <select id="colCount"><option value="1">1段</option><option value="2">2段</option><option value="3" selected>3段</option><option value="4">4段</option></select>
+            </div>
+            <div class="control-group">
+              <label for="fontSizeRange"><ruby>文<rt>も</rt>字<rt>じ</rt></ruby>の 大きさ<span class="control-value" id="fontSizeValue">12px</span></label>
+              <input type="range" id="fontSizeRange" min="8" max="24" value="12" step="0.5">
+            </div>
+          </div>
+
+          <div class="config-col">
+            <h3 class="col-title">🎨 デザイン</h3>
+            <div class="control-group">
+              <label for="themeSelect">テーマ（<ruby>背<rt>はい</rt>景<rt>けい</rt></ruby>と わく）</label>
+              <select id="themeSelect">
+                <option value="default">ふつう（白）</option>
+                <option value="spring">🌸 春（さくら）</option>
+                <option value="summer">🌻 夏（うみ）</option>
+                <option value="autumn">🍁 秋（こうよう）</option>
+                <option value="winter">⛄ 冬（ゆき）</option>
+                <option value="blackboard">🏫 黒板（こくばん）</option>
+                <option value="frame">🔳 シンプルなわく</option>
+              </select>
+            </div>
+            <div class="control-group">
+              <label for="fontFamily">フォント（<ruby>字<rt>じ</rt></ruby>の かたち）</label>
+              <select id="fontFamily">
+                <option value="mincho">新聞明朝（しんぶんみんちょう）</option>
+                <option value="gothic">ゴシック</option>
+                <option value="ud">UD教科書体（きょうかしょたい）</option>
+                <option value="yomogi">よもぎ（手書きふう）</option>
+                <option value="kiwi">キウイ丸（まる）</option>
+              </select>
+            </div>
+            <div class="control-group">
+              <label for="titleStyle"><ruby>見<rt>み</rt></ruby>出しの かざり</label>
+              <select id="titleStyle">
+                <option value="normal">下線（かせん）</option>
+                <option value="double">二重線（にじゅうせん）</option>
+                <option value="leftbar">たて線でつよめる</option>
+                <option value="outline">ふくろ文字</option>
+                <option value="solid">黒おび</option>
+                <option value="marker">マーカー</option>
+              </select>
+            </div>
+            <div class="control-group">
+              <label for="imgSizeSelect"><ruby>写<rt>しゃ</rt>真<rt>しん</rt></ruby>の 大きさ（ぜんたい）</label>
+              <select id="imgSizeSelect"><option value="0.96" selected>大きい</option><option value="0.7">ふつう</option><option value="0.4">小さい</option></select>
+            </div>
+            <div class="control-group">
+              <label for="imgShapeSelect"><ruby>写<rt>しゃ</rt>真<rt>しん</rt></ruby>の かたち（ぜんたい）</label>
+              <select id="imgShapeSelect">
+                <option value="auto">そのまま</option><option value="1/1">正方形（せいほうけい）</option>
+                <option value="3/4">たて長</option><option value="16/9">よこ長</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="config-col wide">
+            <h3 class="col-title">
+              📋 <ruby>記<rt>き</rt>事<rt>じ</rt></ruby>を えらぶ
+              <span class="bar-spacer"></span>
+              <span class="badge" id="poolCount">0本</span>
+            </h3>
+
+            <button type="button" class="btn btn-purple btn-wide btn-small" id="btnFree" style="margin-bottom:12px;">
+              ➕ <ruby>自<rt>じ</rt>由<rt>ゆう</rt></ruby>に <ruby>書<rt>か</rt></ruby>く らんを ふやす
+            </button>
+
+            <div class="filter-box">
+              <div class="filter-row">
+                <label class="visually-hidden" for="searchInput">キーワードで さがす</label>
+                <input type="text" id="searchInput" placeholder="🔍 ことばで さがす" style="flex:1;">
+                <label class="visually-hidden" for="tagFilter">タグで しぼる</label>
+                <select id="tagFilter" style="flex:1;"><option value="">🏷️ ぜんぶの タグ</option></select>
+              </div>
+              <div class="filter-row filter-date">
+                <span aria-hidden="true">📅</span>
+                <label class="visually-hidden" for="dateFrom">この日から</label>
+                <input type="date" id="dateFrom" style="border:none; flex:1;">
+                <span aria-hidden="true">〜</span>
+                <label class="visually-hidden" for="dateTo">この日まで</label>
+                <input type="date" id="dateTo" style="border:none; flex:1;">
+                <button type="button" class="btn btn-sub btn-small" id="btnClearDate">クリア</button>
+              </div>
+              <div class="filter-row" style="justify-content:space-between;">
+                <label class="filter-check"><input type="checkbox" id="showSelectedOnly"> ✅ えらんだ ものだけ</label>
+                <label class="filter-check"><input type="checkbox" id="enableDrag"> ✋ ならびかえ</label>
+              </div>
+            </div>
+
+            <div id="articleList" class="article-list"></div>
+
+            <button type="button" class="btn btn-print btn-wide" id="btnPrint" style="margin-top:12px;">
+              🖨️ <ruby>印<rt>いん</rt>刷<rt>さつ</rt></ruby> / PDF <ruby>保<rt>ほ</rt>存<rt>ぞん</rt></ruby>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="paper-scroll">
+        <div id="paperArea" class="page-a4-v font-mincho theme-default">
+          <header class="newspaper-header">
+            <h2 class="newspaper-title" id="paperTitle" contenteditable="true" spellcheck="false">学級新聞</h2>
+            <div class="newspaper-date" id="paperDate" contenteditable="true" spellcheck="false"></div>
+          </header>
+          <div id="articlesContainer" class="articles-container cols-3 vertical-mode title-normal"></div>
+        </div>
+      </div>
+    </section>
   </main>
 
-  <footer>
-    <p>
-      <a href="https://giga-school.com/">GIGA school トップ</a>　/　
-      <a href="https://giga-school.com/apps/digital-newspaper/">紹介記事</a>　/　
-      <a href="https://github.com/GIGAyama/Digital-Newspaper" rel="noopener">GitHub</a>　/　
-      <a href="privacy.html">プライバシーポリシー</a>　/　
-      <a href="terms.html">利用規約</a>
-    </p>
-    <p>デジタルクラス新聞社（digital-newspaper.giga-school.com）／ GIGAyama</p>
-  </footer>
-</body>
+  <!-- ==================================================================
+       モーダル
+       ================================================================== -->
 
+  <div id="connectModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="connectTitle">
+    <div class="modal-box wide">
+      <div class="modal-header" id="connectTitle">🔗 なかまと つながる</div>
+      <div class="modal-body">
+        <p class="hint" style="margin-top:0;">
+          <ruby>紙<rt>し</rt>面<rt>めん</rt></ruby>を くみたてる たんまつで「あつめる」を おします。
+          ほかの たんまつは「おくる」で あいことばを 入れて つながります。
+        </p>
+
+        <div class="conn-choice">
+          <h4>📮 <ruby>記<rt>き</rt>事<rt>じ</rt></ruby>を あつめる</h4>
+          <p class="hint">この たんまつに、みんなの 記事を あつめます。</p>
+          <div id="hostIdle">
+            <button type="button" class="btn btn-go btn-wide" id="btnHost">へやを ひらく</button>
+          </div>
+          <div id="hostActive" hidden>
+            <p class="hint">あいことば（これを つたえてね）</p>
+            <div class="room-code" id="roomCodeText" tabindex="0"></div>
+            <p class="hint" id="hostStatus"></p>
+            <div class="btn-row">
+              <button type="button" class="btn btn-sub btn-small" id="btnCopyCode">📋 コピー</button>
+              <button type="button" class="btn btn-danger btn-small" id="btnCloseRoom">へやを とじる</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="conn-choice">
+          <h4>✉️ <ruby>記<rt>き</rt>事<rt>じ</rt></ruby>を おくる</h4>
+          <p class="hint">あつめている たんまつに つながります。</p>
+          <div id="guestIdle">
+            <label class="visually-hidden" for="roomCodeInput">あいことば</label>
+            <div class="filter-row">
+              <input type="text" id="roomCodeInput" placeholder="ABC23-KM7PQ" maxlength="14" autocomplete="off" style="flex:1;">
+              <button type="button" class="btn btn-blue" id="btnGuest">はいる</button>
+            </div>
+            <p class="hint">小さい字でも、「-」が なくても だいじょうぶ。</p>
+          </div>
+          <div id="guestActive" hidden>
+            <p class="hint" id="guestStatus"></p>
+            <button type="button" class="btn btn-danger btn-small" id="btnLeaveRoom">つながりを きる</button>
+          </div>
+        </div>
+
+        <p class="hint">
+          つながらない ときは、「ファイルに <ruby>書<rt>か</rt></ruby>き<ruby>出<rt>だ</rt></ruby>す」で
+          <code>.json</code> を わたしても 同じことが できます。
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="modal-btn btn-cancel" data-close="connectModal">とじる</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirmModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="modal-box">
+      <div class="modal-header" id="confirmTitle">かくにん</div>
+      <div class="modal-body" id="confirmMessage"></div>
+      <div class="modal-footer">
+        <button type="button" class="modal-btn btn-cancel" data-close="confirmModal">やめる</button>
+        <button type="button" class="modal-btn btn-confirm" id="confirmOk">する</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="freeModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="freeTitleLabel">
+    <div class="modal-box">
+      <div class="modal-header" id="freeTitleLabel">➕ 自由に書く らんを ふやす</div>
+      <div class="modal-body">
+        <label for="freeTitle">見出し</label>
+        <input type="text" id="freeTitle" value="編集後記" maxlength="80">
+        <label for="freeReporter">書いた人</label>
+        <input type="text" id="freeReporter" value="編集部" maxlength="30">
+        <label for="freeBody">本文</label>
+        <textarea id="freeBody" rows="5" maxlength="4000"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="modal-btn btn-cancel" data-close="freeModal">やめる</button>
+        <button type="button" class="modal-btn btn-confirm" id="btnFreeAdd">ふやす</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="saveModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="saveTitleLabel">
+    <div class="modal-box">
+      <div class="modal-header" id="saveTitleLabel">💾 いまの じょうたいを 保存する</div>
+      <div class="modal-body">
+        <p class="hint" style="margin-top:0;">えらんだ記事・書きかえた文・レイアウトを、まとめて この たんまつに 保存します。</p>
+        <label for="saveName">保存する 名前</label>
+        <input type="text" id="saveName" placeholder="れい：1がっき号_とちゅう" maxlength="60">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="modal-btn btn-cancel" data-close="saveModal">やめる</button>
+        <button type="button" class="modal-btn btn-confirm" id="btnSaveExec">保存する</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="loadModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="loadTitleLabel">
+    <div class="modal-box">
+      <div class="modal-header" id="loadTitleLabel">📂 保存した ものを 呼び出す</div>
+      <div class="modal-body">
+        <label for="loadSelect">どれを もどしますか</label>
+        <select id="loadSelect"></select>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="modal-btn btn-cancel" data-close="loadModal">やめる</button>
+        <button type="button" class="modal-btn btn-confirm" id="btnLoadExec">もどす</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="templateModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="tplTitleLabel">
+    <div class="modal-box">
+      <div class="modal-header" id="tplTitleLabel">🎨 デザインの テンプレート</div>
+      <div class="modal-body">
+        <p class="hint" style="margin-top:0;">レイアウトとデザインだけを 保存して、べつの号に あてはめられます。記事の中身は かわりません。</p>
+        <label for="templateName">💾 いまの設定を 保存する</label>
+        <div class="filter-row">
+          <input type="text" id="templateName" placeholder="れい：黒板スタイル" maxlength="40" style="flex:1;">
+          <button type="button" class="btn btn-go btn-small" id="btnTplSave">保存</button>
+        </div>
+        <label for="templateSelect">📂 保存した設定を あてはめる</label>
+        <div class="filter-row">
+          <select id="templateSelect" style="flex:1;"></select>
+          <button type="button" class="btn btn-blue btn-small" id="btnTplLoad">あてはめる</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="modal-btn btn-cancel" data-close="templateModal">とじる</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="tagsModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="tagsTitleLabel">
+    <div class="modal-box">
+      <div class="modal-header" id="tagsTitleLabel">🏷️ タグの 設定</div>
+      <div class="modal-body">
+        <p class="hint" style="margin-top:0;">
+          「記事を かく」画面に 出る タグです。絵文字・名前・ふりがなを 入れてください。
+          へやを ひらいて いるあいだは、つながった たんまつにも 同じ タグが とどきます。
+        </p>
+        <div id="tagListContainer" class="tag-manage-list"></div>
+        <button type="button" class="btn btn-sub btn-wide btn-small" id="btnAddTag">＋ タグを ふやす</button>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="modal-btn btn-cancel" data-close="tagsModal">やめる</button>
+        <button type="button" class="modal-btn btn-confirm" id="btnTagsSave">保存する</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="updateBar">
+    <span>あたらしい バージョンが あります</span>
+    <button type="button" class="btn btn-sub btn-small" id="btnApplyUpdate">さいしんに する</button>
+  </div>
+
+  <!-- 実行コードは1バイトも外から取らない。学校のネットワークが CDN を
+       塞いでいても、通信も QR も同じように動く。 -->
+  <script src="vendor/qr-creator-1.0.0.min.js"></script>
+  <script src="vendor/peerjs-1.5.2.min.js"></script>
+
+  <script>
+  (function () {
+    'use strict';
+
+    /* ===================================================================
+       0. 置き場所と決めごと
+       ===================================================================
+       localStorage のキーは、かならず dnp_ で始める。
+       同じオリジンに他のアプリが同居することがあるので、
+       接頭辞の付いていないキーは読みも書きも消しもしない。
+       localStorage.clear() は使わない。
+       =================================================================== */
+    var NS = 'dnp_';
+    var KEY = {
+      articles:  NS + 'articles_v1',
+      states:    NS + 'states_v1',
+      desk:      NS + 'desk_v1',
+      saves:     NS + 'saves_v1',
+      templates: NS + 'templates_v1',
+      tags:      NS + 'tags_v1',
+      client:    NS + 'client_id_v1',
+      mode:      NS + 'mode_v1'
+    };
+
+    var DEFAULT_TAGS = [
+      { icon: '📰', name: 'ニュース', ruby: 'にゅーす' },
+      { icon: '🎌', name: '行事',     ruby: 'ぎょうじ' },
+      { icon: '📚', name: '学習',     ruby: 'がくしゅう' },
+      { icon: '⚽', name: '遊び',     ruby: 'あそび' },
+      { icon: '💡', name: 'その他',   ruby: 'そのた' }
+    ];
+
+    var LIMIT = {
+      title: 80, body: 4000, reporter: 30, tag: 30,
+      // 受け取る写真の上限（data URL の文字数）。長辺 1200px・JPEG 品質 0.82 なら
+      // ふつうの教室の写真で 150〜300KB におさまる。上限はその数倍。
+      // これを超えるものは、届いても受け取らない。
+      image: 2 * 1024 * 1024,
+      articles: 300
+    };
+
+    /* 写真の縮小。IndexedDB に置くので容量には余裕があるが、
+       元の大きさ（数MB）のまま持つ意味も無い。
+       1200px あれば、A4 の1段組みで全幅に伸ばしても 160dpi ほどになる
+       （3段組みなら 500dpi を超える）。 */
+    var PHOTO_MAX_EDGE = 1200;
+    var PHOTO_QUALITY = 0.82;
+
+    /* 写真の置き場所。
+       記事の文字は localStorage に置き、写真だけを IndexedDB に置く。
+
+       なぜ分けるか:
+         localStorage は 1 オリジンあたり 5MB 程度しかない。写真を base64 で
+         そこに入れると、40 本ほどで一杯になる（前の版がそうだった）。
+         IndexedDB は端末の空きに応じた大きさまで入り、しかも Blob を
+         そのまま持てるので base64 の 1.33 倍という水増しも起きない。
+
+       なぜ全部を IndexedDB にしないか:
+         IndexedDB の書き込みは非同期で、Chromebook がタブを捨てるときの
+         pagehide では最後まで書き終わる保証が無い。記事の文字は
+         localStorage の同期書き込みで確実に残す。写真は撮り直せるが、
+         書いた文章は撮り直せない。 */
+    var PHOTO_DB = 'dnp_photos_v1';
+    var PHOTO_STORE = 'photos';
+
+    /* あいことば。見まちがえやすい 0 O 1 I L は入れない。 */
+    var CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    var CODE_LENGTH = 10;
+    var PEER_ID_PREFIX = 'class-news-';
+
+    /* ===================================================================
+       1. 小道具
+       =================================================================== */
+    var $ = function (id) { return document.getElementById(id); };
+
+    function uuid() {
+      var c = window.crypto;
+      if (c && c.randomUUID) return c.randomUUID();
+      var bytes = new Uint8Array(16);
+      if (c && c.getRandomValues) c.getRandomValues(bytes);
+      else for (var i = 0; i < 16; i++) bytes[i] = Math.floor(Math.random() * 256);
+      bytes[6] = (bytes[6] & 0x0f) | 0x40;
+      bytes[8] = (bytes[8] & 0x3f) | 0x80;
+      var hex = Array.prototype.map.call(bytes, function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+      return hex.slice(0, 8) + '-' + hex.slice(8, 12) + '-' + hex.slice(12, 16) + '-' + hex.slice(16, 20) + '-' + hex.slice(20);
+    }
+
+    function safeParse(raw, fallback) {
+      try {
+        var v = JSON.parse(raw);
+        return (v === null || v === undefined) ? fallback : v;
+      } catch (e) { return fallback; }
+    }
+
+    function lsRead(key, fallback) {
+      try { return safeParse(localStorage.getItem(key), fallback); }
+      catch (e) { return fallback; }
+    }
+
+    /* 書けなかったことを黙って飲みこまない。保存領域がいっぱいのときは
+       画面に出す。ここを true/false で返すのは、呼ぶ側が
+       「保存できていないのに保存できた顔をする」のを避けるため。 */
+    function lsWrite(key, value) {
+      try { localStorage.setItem(key, JSON.stringify(value)); return true; }
+      catch (e) { return false; }
+    }
+
+    function fmtDate(ms) {
+      var d = new Date(ms);
+      if (isNaN(d.getTime())) return '';
+      return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日';
+    }
+
+    function todayLabel() {
+      var n = new Date();
+      return n.getFullYear() + '年 ' + (n.getMonth() + 1) + '月 ' + n.getDate() + '日 発行';
+    }
+
+    /* 要素づくり。文字は textContent でしか入れない。
+       P2P で届く記事は他人の端末が作ったもので、中身を信用できない。
+       innerHTML に流しこむと、届いた文字列がそのまま画面の一部になる。 */
+    function el(tag, opts) {
+      var e = document.createElement(tag);
+      opts = opts || {};
+      if (opts.className) e.className = opts.className;
+      if (opts.text !== undefined) e.textContent = opts.text;
+      if (opts.attrs) Object.keys(opts.attrs).forEach(function (k) { e.setAttribute(k, opts.attrs[k]); });
+      if (opts.style) e.setAttribute('style', opts.style);
+      if (opts.children) opts.children.forEach(function (c) { if (c) e.appendChild(c); });
+      return e;
+    }
+
+    /* ===================================================================
+       2. 記事の形をそろえる
+       ===================================================================
+       P2P で届いたものも、ファイルから読んだものも、かならずここを通す。
+       壊れたデータや細工されたデータで画面が壊れないようにするため。
+       =================================================================== */
+    var IMAGE_RE = /^data:image\/(png|jpeg|jpg|gif|webp);base64,[A-Za-z0-9+/]+={0,2}$/;
+
+    function normalizeArticle(raw) {
+      var r = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
+      var str = function (v, n) { return (typeof v === 'string' ? v : '').slice(0, n); };
+      var when = function (v) { return (typeof v === 'number' && isFinite(v) && v > 0) ? v : Date.now(); };
+
+      var image = typeof r.image === 'string' ? r.image : '';
+      if (image && (!IMAGE_RE.test(image) || image.length > LIMIT.image)) image = '';
+
+      var id = str(r.id, 64);
+      return {
+        id: id || uuid(),
+        title: str(r.title, LIMIT.title),
+        body: str(r.body, LIMIT.body),
+        reporter: str(r.reporter, LIMIT.reporter),
+        tag: str(r.tag, LIMIT.tag),
+        // image に中身が入るのは、届いた直後（まだ IndexedDB へ移していない）か、
+        // IndexedDB が使えない端末のとき。ふだんは空で、写真は photoInDb 側にある。
+        image: image,
+        photoInDb: r.photoInDb === true,
+        createdAt: when(r.createdAt),
+        updatedAt: when(r.updatedAt),
+        authorId: str(r.authorId, 64),
+        authorName: str(r.authorName, LIMIT.reporter),
+        // 送った・のせてもらった、は自分の端末の覚え書き。
+        // 相手から届いた値は当てにしない（受け取り側で付けなおす）。
+        sent: r.sent === true,
+        published: r.published === true,
+        isFree: r.isFree === true
+      };
+    }
+
+    function normalizeState(raw) {
+      var r = (raw && typeof raw === 'object') ? raw : {};
+      var oneOf = function (v, list, def) { return list.indexOf(v) >= 0 ? v : def; };
+      return {
+        checked: r.checked === true,
+        imgPos: oneOf(r.imgPos, ['top', 'bottom', 'float-left', 'float-right'], 'top'),
+        imgSize: oneOf(r.imgSize, ['default', '0.96', '0.7', '0.4'], 'default'),
+        imgShape: oneOf(r.imgShape, ['default', 'auto', '1/1', '16/9', '3/4'], 'default'),
+        // http(s) で始まる URL しか QR にしない。javascript: を刷らせない。
+        qrUrl: (typeof r.qrUrl === 'string' && /^https?:\/\//i.test(r.qrUrl)) ? r.qrUrl.slice(0, 500) : '',
+        showTitle: r.showTitle !== false
+      };
+    }
+
+    function normalizeTags(raw) {
+      var list = Array.isArray(raw) ? raw : [];
+      var out = [];
+      list.slice(0, 30).forEach(function (t) {
+        var o = (t && typeof t === 'object') ? t : {};
+        var name = (typeof o.name === 'string' ? o.name : '').trim().slice(0, LIMIT.tag);
+        if (!name) return;
+        out.push({
+          icon: (typeof o.icon === 'string' ? o.icon : '🏷️').slice(0, 4) || '🏷️',
+          name: name,
+          ruby: (typeof o.ruby === 'string' ? o.ruby : '').slice(0, 30)
+        });
+      });
+      return out.length ? out : DEFAULT_TAGS.slice();
+    }
+
+    /* ===================================================================
+       3. いまの状態
+       =================================================================== */
+    var myId = (function () {
+      var v = lsRead(KEY.client, null);
+      if (typeof v === 'string' && v) return v;
+      var id = uuid();
+      lsWrite(KEY.client, id);
+      return id;
+    })();
+
+    var articles = (lsRead(KEY.articles, []) || []).map(normalizeArticle);
+    var states = (function () {
+      var raw = lsRead(KEY.states, {}) || {};
+      var out = {};
+      Object.keys(raw).forEach(function (k) { out[k] = normalizeState(raw[k]); });
+      return out;
+    })();
+    var tags = normalizeTags(lsRead(KEY.tags, null));
+
+    var desk = (function () {
+      var d = lsRead(KEY.desk, {}) || {};
+      return {
+        free: (Array.isArray(d.free) ? d.free : []).map(function (a) {
+          var n = normalizeArticle(a); n.isFree = true; return n;
+        }),
+        order: Array.isArray(d.order) ? d.order.filter(function (x) { return typeof x === 'string'; }) : [],
+        edits: (d.edits && typeof d.edits === 'object') ? d.edits : {},
+        paper: (d.paper && typeof d.paper === 'object') ? d.paper : {},
+        conf: (d.conf && typeof d.conf === 'object') ? d.conf : {}
+      };
+    })();
+
+    var editingId = null;     // 「記事をかく」でいま開いている記事
+    var pendingPhoto = null;  // フォームで選んだ写真（Blob）。保存のときに置き場所へ移す
+    var pendingPhotoUrl = '';  // その見本を出すための blob: URL
+    var pendingPhotoKept = false;  // 開いた記事の写真を、そのまま持ちこしているか
+    var editingTags = [];     // タグ設定モーダルの作業用
+
+    function isMine(a) { return !a.authorId || a.authorId === myId; }
+    function findArticle(id) {
+      for (var i = 0; i < articles.length; i++) if (articles[i].id === id) return articles[i];
+      for (var j = 0; j < desk.free.length; j++) if (desk.free[j].id === id) return desk.free[j];
+      return null;
+    }
+
+    /* ===================================================================
+       3.5 写真の置き場所（IndexedDB）
+       ===================================================================
+       ここが使えないブラウザ（プライベートモードで塞がれている等）でも
+       アプリは動く。そのときは写真を data URL のまま記事に持ち、
+       localStorage へ書く（前の版と同じ形）。容量は 5MB のままになるので、
+       画面に出す「ためた りょう」もそれに合わせて出しかたを変える。
+       =================================================================== */
+    var photoDbPromise = null;
+    var photoDbBroken = false;
+    var photoUrls = {};       // 記事ID → 画面に出すための blob: URL
+
+    function photoDb() {
+      if (photoDbBroken) return Promise.resolve(null);
+      if (photoDbPromise) return photoDbPromise;
+      photoDbPromise = new Promise(function (resolve) {
+        var req;
+        try { req = window.indexedDB.open(PHOTO_DB, 1); }
+        catch (e) { photoDbBroken = true; resolve(null); return; }
+        req.onupgradeneeded = function () {
+          var db = req.result;
+          if (!db.objectStoreNames.contains(PHOTO_STORE)) db.createObjectStore(PHOTO_STORE);
+        };
+        req.onsuccess = function () { resolve(req.result); };
+        req.onerror = function () { photoDbBroken = true; resolve(null); };
+        req.onblocked = function () { photoDbBroken = true; resolve(null); };
+      });
+      return photoDbPromise;
+    }
+
+    /* 1 回ぶんのやりとり。db が無ければ null を返すので、
+       呼ぶ側は「入らなかった」として扱える。 */
+    function photoTx(mode, run) {
+      return photoDb().then(function (db) {
+        if (!db) return null;
+        return new Promise(function (resolve) {
+          var tx, store;
+          try {
+            tx = db.transaction(PHOTO_STORE, mode);
+            store = tx.objectStore(PHOTO_STORE);
+          } catch (e) { resolve(null); return; }
+          var req = run(store);
+          tx.onabort = tx.onerror = function () { resolve(null); };
+          tx.oncomplete = function () { resolve(req ? req.result : true); };
+        });
+      });
+    }
+
+    var putPhoto = function (id, blob) { return photoTx('readwrite', function (s) { return s.put(blob, id); }); };
+    var getPhoto = function (id) { return photoTx('readonly', function (s) { return s.get(id); }); };
+    var dropPhoto = function (id) { return photoTx('readwrite', function (s) { return s.delete(id); }); };
+    var photoKeys = function () { return photoTx('readonly', function (s) { return s.getAllKeys(); }); };
+
+    function setPhotoUrl(id, blob) {
+      if (photoUrls[id]) { try { URL.revokeObjectURL(photoUrls[id]); } catch (e) {} }
+      if (blob) photoUrls[id] = URL.createObjectURL(blob);
+      else delete photoUrls[id];
+    }
+
+    /* 画面に出すときの写真。IndexedDB に入っていれば blob: URL、
+       入れられなかったときは記事が持っている data URL。 */
+    function photoOf(a) { return (a && (photoUrls[a.id] || a.image)) || ''; }
+    function hasPhoto(a) { return !!(a && (a.photoInDb || a.image || photoUrls[a.id])); }
+
+    /* base64 を Blob に。fetch('data:...') でも取れるが、
+       CSP の connect-src に頼らずに済むほうを選ぶ。 */
+    function dataUrlToBlob(dataUrl) {
+      var m = /^data:([^;,]+);base64,(.*)$/.exec(dataUrl || '');
+      if (!m) return null;
+      var bin;
+      try { bin = atob(m[2]); } catch (e) { return null; }
+      var bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return new Blob([bytes], { type: m[1] });
+    }
+
+    function blobToDataUrl(blob) {
+      return new Promise(function (resolve) {
+        var reader = new FileReader();
+        reader.onload = function () { resolve(String(reader.result)); };
+        reader.onerror = function () { resolve(''); };
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    /* 送るとき・書き出すときだけ data URL に戻す。 */
+    function photoDataUrl(a) {
+      if (!a) return Promise.resolve('');
+      if (a.image) return Promise.resolve(a.image);
+      if (!a.photoInDb) return Promise.resolve('');
+      return getPhoto(a.id).then(function (blob) {
+        return blob ? blobToDataUrl(blob) : '';
+      });
+    }
+
+    /* 記事に写真を結びつける。IndexedDB に入れば記事は軽いまま、
+       入らなければ記事が data URL を抱える（前の版と同じ形）。 */
+    function attachPhoto(a, blob) {
+      return putPhoto(a.id, blob).then(function (ok) {
+        if (ok !== null) {
+          a.photoInDb = true; a.image = '';
+          setPhotoUrl(a.id, blob);
+          return true;
+        }
+        return blobToDataUrl(blob).then(function (dataUrl) {
+          a.photoInDb = false;
+          a.image = (dataUrl && dataUrl.length <= LIMIT.image) ? dataUrl : '';
+          setPhotoUrl(a.id, null);
+          return !!a.image;
+        });
+      });
+    }
+
+    function detachPhoto(a) {
+      a.photoInDb = false; a.image = '';
+      setPhotoUrl(a.id, null);
+      return dropPhoto(a.id);
+    }
+
+    /* ===================================================================
+       4. 保存
+       =================================================================== */
+    var saveWarned = false;
+    function reportSaveFailure() {
+      if (saveWarned) return;
+      saveWarned = true;
+      toast('この たんまつに ほぞん できませんでした。ほぞん りょうが いっぱいかも しれません。', 'error', 8000);
+    }
+
+    /* localStorage へ書くのは文字だけ。IndexedDB に入っている写真の
+       data URL をここに混ぜると、分けた意味が無くなる。 */
+    function toStored(a) {
+      if (!a.photoInDb || !a.image) return a;
+      var copy = {};
+      Object.keys(a).forEach(function (k) { copy[k] = a[k]; });
+      copy.image = '';
+      return copy;
+    }
+
+    function saveArticles() {
+      if (!lsWrite(KEY.articles, articles.map(toStored))) reportSaveFailure();
+      updateStorageMeter();
+    }
+    function saveStates() { if (!lsWrite(KEY.states, states)) reportSaveFailure(); }
+    function saveTags() { if (!lsWrite(KEY.tags, tags)) reportSaveFailure(); }
+
+    function saveDesk() {
+      desk.paper = { title: $('paperTitle').textContent, date: $('paperDate').textContent };
+      desk.conf = readConf();
+      if (!lsWrite(KEY.desk, desk)) reportSaveFailure();
+    }
+
+    /* 端末にどれくらい溜まっているかを出す。
+       黙って上限に当たると「送ったのに保存されていない」になるので、
+       先に見えるようにしておく。
+
+       写真が IndexedDB に入っているときは、ブラウザが教えてくれる
+       見積もり（navigator.storage.estimate）を使う。端末の空きに応じた
+       大きさなので、決め打ちの数字では出せない。
+       IndexedDB が使えない端末では、前の版と同じ 4.5MB を目安に出す。 */
+    var LS_BUDGET = 4.5 * 1024 * 1024;
+    function localBytes() {
+      var total = 0;
+      try {
+        for (var i = 0; i < localStorage.length; i++) {
+          var k = localStorage.key(i);
+          if (k && k.indexOf(NS) === 0) total += k.length + (localStorage.getItem(k) || '').length;
+        }
+      } catch (e) { return -1; }
+      return total * 2;   // localStorage は UTF-16 で数える実装が多い
+    }
+
+    function showMeter(text, pct, tight) {
+      var bar = $('storageBar');
+      var label = $('storageLabel');
+      if (!bar || !label) return;
+      bar.value = Math.max(0, Math.min(100, pct));
+      label.textContent = text;
+      label.className = tight ? 'hint danger-text' : 'hint';
+    }
+
+    var meterTimer = null;
+    function updateStorageMeter() {
+      // 記事を1本足すたびに estimate() を呼ぶと重い。まとめて 1 回にする
+      clearTimeout(meterTimer);
+      meterTimer = setTimeout(runStorageMeter, 300);
+    }
+
+    function runStorageMeter() {
+      var mb = function (n) { return (n / 1024 / 1024).toFixed(1) + 'MB'; };
+      if (!photoDbBroken && navigator.storage && navigator.storage.estimate) {
+        navigator.storage.estimate().then(function (est) {
+          var used = est.usage || 0;
+          var quota = est.quota || 0;
+          if (!quota) { showMeter('この たんまつに ためた りょう：約 ' + mb(used), 0, false); return; }
+          var pct = Math.round((used / quota) * 100);
+          showMeter('この たんまつに ためた りょう：約 ' + mb(used) + '（つかえる ' + mb(quota) + ' の ' + pct + '%）',
+            Math.max(pct, 1), pct >= 80);
+        }, function () { localMeter(); });
+        return;
+      }
+      localMeter();
+    }
+
+    function localMeter() {
+      var bytes = localBytes();
+      if (bytes < 0) { showMeter('ほぞん りょうを しらべられません', 0, false); return; }
+      var pct = Math.min(100, Math.round((bytes / LS_BUDGET) * 100));
+      showMeter('この たんまつに ためた りょう：約 ' + (bytes / 1024 / 1024).toFixed(1)
+        + 'MB（めやす 4.5MB の ' + pct + '%）', pct, pct >= 80);
+    }
+
+    /* ===================================================================
+       5. トーストとモーダル
+       =================================================================== */
+    function toast(message, type, ms) {
+      var box = el('div', { className: 'toast toast-' + (type || 'info') });
+      box.appendChild(el('span', { text: type === 'error' ? '⚠️' : type === 'success' ? '✅' : 'ℹ️' }));
+      box.appendChild(el('span', { text: message }));
+      $('toastContainer').appendChild(box);
+      requestAnimationFrame(function () { box.classList.add('show'); });
+      setTimeout(function () {
+        box.classList.remove('show');
+        setTimeout(function () { if (box.parentNode) box.parentNode.removeChild(box); }, 320);
+      }, ms || 3200);
+    }
+
+    var lastFocus = null;
+    function openModal(id) {
+      lastFocus = document.activeElement;
+      var m = $(id);
+      m.style.display = 'flex';
+      requestAnimationFrame(function () { m.classList.add('show'); });
+      var first = m.querySelector('input, select, textarea, button');
+      if (first) first.focus();
+    }
+    function closeModal(id) {
+      var m = $(id);
+      m.classList.remove('show');
+      setTimeout(function () { m.style.display = 'none'; }, 260);
+      if (lastFocus && lastFocus.focus) lastFocus.focus();
+    }
+    document.querySelectorAll('[data-close]').forEach(function (b) {
+      b.addEventListener('click', function () { closeModal(b.getAttribute('data-close')); });
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      var open = document.querySelector('.modal-overlay.show');
+      if (open) closeModal(open.id);
+    });
+
+    function confirmThen(message, onOk) {
+      $('confirmMessage').textContent = message;
+      var btn = $('confirmOk');
+      var fresh = btn.cloneNode(true);
+      btn.parentNode.replaceChild(fresh, btn);
+      fresh.addEventListener('click', function () { closeModal('confirmModal'); onOk(); });
+      openModal('confirmModal');
+    }
+
+    /* ===================================================================
+       6.「記事を かく」画面
+       =================================================================== */
+    function renderTagChoices() {
+      var grid = $('tagGrid');
+      var current = selectedTag();
+      grid.textContent = '';
+      tags.forEach(function (t, i) {
+        var input = el('input', {
+          className: 'tag-radio',
+          attrs: { type: 'radio', name: 'tag', id: 'tag-' + i, value: t.name }
+        });
+        if (t.name === current) input.checked = true;
+        var label = el('label', { className: 'tag-label', attrs: { for: 'tag-' + i } });
+        label.appendChild(el('span', { text: t.icon, style: 'font-size:1.2em' }));
+        if (t.ruby) {
+          var ruby = el('ruby', { text: t.name });
+          ruby.appendChild(el('rt', { text: t.ruby }));
+          label.appendChild(ruby);
+        } else {
+          label.appendChild(el('span', { text: t.name }));
+        }
+        grid.appendChild(input);
+        grid.appendChild(label);
+      });
+    }
+
+    function selectedTag() {
+      var hit = document.querySelector('#tagGrid .tag-radio:checked');
+      return hit ? hit.value : '';
+    }
+    function setSelectedTag(name) {
+      var list = document.querySelectorAll('#tagGrid .tag-radio');
+      for (var i = 0; i < list.length; i++) list[i].checked = (list[i].value === name);
+    }
+
+    /* フォームの写真を差し替える。
+       blob には「これから保存する Blob」を、keepUrl には「すでに保存済みの
+       写真をそのまま見せるだけ」の URL を渡す（開いた記事を直すとき）。 */
+    function setPhoto(blob, keepUrl) {
+      if (pendingPhotoUrl) { try { URL.revokeObjectURL(pendingPhotoUrl); } catch (e) {} }
+      pendingPhotoUrl = '';
+      pendingPhoto = blob || null;
+      pendingPhotoKept = !blob && !!keepUrl;
+
+      var img = $('photoPreview');
+      var clear = $('btnPhotoClear');
+      var src = keepUrl || '';
+      if (blob) { pendingPhotoUrl = URL.createObjectURL(blob); src = pendingPhotoUrl; }
+
+      if (src) {
+        img.src = src; img.hidden = false; clear.hidden = false;
+        $('photoNote').textContent = blob
+          ? '小さくして しまいます：約 ' + Math.round(blob.size / 1024) + 'KB'
+          : 'この 記事に ついている 写真です。';
+      } else {
+        img.removeAttribute('src'); img.hidden = true; clear.hidden = true;
+        $('fPhoto').value = '';
+        $('photoNote').textContent = 'えらぶと、小さくしてから この たんまつに しまいます。';
+      }
+    }
+
+    /* 写真を縮める。端末の中だけで完結する（どこにも送らない）。 */
+    function shrinkPhoto(file) {
+      return new Promise(function (resolve, reject) {
+        var url = URL.createObjectURL(file);
+        var img = new Image();
+        img.onload = function () {
+          URL.revokeObjectURL(url);
+          var w = img.naturalWidth, h = img.naturalHeight;
+          if (!w || !h) { reject(new Error('画像を読めませんでした')); return; }
+          var scale = Math.min(1, PHOTO_MAX_EDGE / Math.max(w, h));
+          var cw = Math.max(1, Math.round(w * scale));
+          var ch = Math.max(1, Math.round(h * scale));
+          var canvas = document.createElement('canvas');
+          canvas.width = cw; canvas.height = ch;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, cw, ch);
+          // toDataURL ではなく toBlob。IndexedDB には Blob のまま入れられるので、
+          // base64 にすると 1.33 倍に膨らむだけで得が無い。
+          canvas.toBlob(function (blob) {
+            if (blob) resolve(blob);
+            else reject(new Error('画像を作れませんでした'));
+          }, 'image/jpeg', PHOTO_QUALITY);
+        };
+        img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('画像を読めませんでした')); };
+        img.src = url;
+      });
+    }
+
+    $('fPhoto').addEventListener('change', function () {
+      var file = this.files && this.files[0];
+      if (!file) { setPhoto(''); return; }
+      $('photoNote').textContent = '小さくしています…';
+      shrinkPhoto(file).then(function (blob) {
+        // base64 にしたときの長さで見る。送るときはこの形になるため
+        if (blob.size * 1.4 > LIMIT.image) {
+          setPhoto(null, '');
+          toast('この 写真は 大きすぎて つかえません。べつの 写真を えらんでください。', 'error', 6000);
+          return;
+        }
+        setPhoto(blob, '');
+      }).catch(function () {
+        setPhoto(null, '');
+        toast('この ファイルは 写真として 読めませんでした。', 'error');
+      });
+    });
+    $('btnPhotoPick').addEventListener('click', function () { $('fPhoto').click(); });
+    $('btnPhotoClear').addEventListener('click', function () { setPhoto(null, ''); });
+
+    $('fBody').addEventListener('input', function () {
+      $('bodyCount').textContent = this.value.replace(/\n/g, '').length + '字';
+    });
+
+    function formToArticle() {
+      var now = Date.now();
+      var base = editingId ? findArticle(editingId) : null;
+      // 写真そのものはここでは付けない。ID が決まってから置き場所へ移す。
+      // 開いた記事をそのまま保存するときだけ、いまの結びつきを引き継ぐ。
+      var keep = pendingPhotoKept && base;
+      return normalizeArticle({
+        id: base ? base.id : uuid(),
+        title: $('fTitle').value.trim(),
+        body: $('fBody').value,
+        reporter: $('fReporter').value.trim(),
+        tag: selectedTag(),
+        image: keep ? base.image : '',
+        photoInDb: keep ? base.photoInDb : false,
+        createdAt: base ? base.createdAt : now,
+        updatedAt: now,
+        authorId: myId,
+        authorName: $('fReporter').value.trim(),
+        sent: false,
+        published: base ? base.published : false
+      });
+    }
+
+    function loadIntoForm(a) {
+      editingId = a ? a.id : null;
+      $('fTitle').value = a ? a.title : '';
+      $('fBody').value = a ? a.body : '';
+      $('bodyCount').textContent = (a ? a.body.replace(/\n/g, '').length : 0) + '字';
+      // 名前だけは引き継ぐ。毎回打ち直させない。
+      if (a) $('fReporter').value = a.reporter;
+      setSelectedTag(a ? a.tag : '');
+      setPhoto(null, a ? photoOf(a) : '');
+      renderMine();
+      $('fTitle').focus();
+    }
+
+    function validateForm() {
+      if (!$('fTitle').value.trim()) { toast('タイトルを 書いてね。', 'error'); $('fTitle').focus(); return false; }
+      if (!$('fBody').value.trim()) { toast('本文を 書いてね。', 'error'); $('fBody').focus(); return false; }
+      if (!$('fReporter').value.trim()) { toast('名前を 書いてね。', 'error'); $('fReporter').focus(); return false; }
+      if (!selectedTag()) { toast('タグを ひとつ えらんでね。', 'error'); return false; }
+      return true;
+    }
+
+    /* 記事をプールに入れる（同じ ID があれば新しいほうを残す）。 */
+    /* autoCheck を省くと「自分で書いたものは紙面に入れる／
+       とどいたものは入れない」になる。あつめる側が えらぶ形にするため。 */
+    function upsertArticle(a, autoCheck) {
+      for (var i = 0; i < articles.length; i++) {
+        if (articles[i].id !== a.id) continue;
+        if (a.updatedAt < articles[i].updatedAt) return articles[i];
+        // sent / published は受け取り側の覚え書きなので、
+        // 中身を差し替えるときも消さずに引き継ぐ。
+        a.sent = a.sent || articles[i].sent;
+        a.published = a.published || articles[i].published;
+        articles[i] = a;
+        return a;
+      }
+      if (articles.length >= LIMIT.articles) {
+        toast('記事が ' + LIMIT.articles + '本を こえました。ふるい ものを けしてください。', 'error', 7000);
+        return null;
+      }
+      articles.push(a);
+      if (!states[a.id]) {
+        states[a.id] = normalizeState({ checked: autoCheck === undefined ? isMine(a) : autoCheck });
+      }
+      return a;
+    }
+
+    /* 保存。写真の置き場所への書き込みは非同期なので Promise を返す。
+       記事そのもの（文字）は先に localStorage へ入れておく。
+       写真が入らなくても、書いた文章だけは残るようにするため。 */
+    function saveFromForm(quiet) {
+      if (!validateForm()) return Promise.resolve(null);
+      var a = upsertArticle(formToArticle());
+      if (!a) return Promise.resolve(null);
+      editingId = a.id;
+
+      var blob = pendingPhoto;
+      var removed = !blob && !pendingPhotoKept && (a.photoInDb || a.image);
+      var work = blob ? attachPhoto(a, blob)
+        : (removed ? detachPhoto(a) : Promise.resolve(true));
+
+      saveArticles(); saveStates();
+      renderMine(); refreshDesk();
+
+      return work.then(function () {
+        if (blob) { setPhoto(null, photoOf(a)); }
+        saveArticles();
+        renderMine(); refreshDesk();
+        if (!quiet) toast('保存しました。', 'success');
+        return a;
+      });
+    }
+
+    $('articleForm').addEventListener('submit', function (e) { e.preventDefault(); saveFromForm(false); });
+
+    $('btnNew').addEventListener('click', function () {
+      loadIntoForm(null);
+      toast('あたらしい 記事を かけます。', 'info');
+    });
+
+    $('btnSend').addEventListener('click', function () {
+      // 写真を置き場所へ移し終えてから送る。先に送ると写真が抜ける
+      saveFromForm(true).then(function (a) {
+        if (!a) return;
+        if (p2p.role !== 'guest' || !p2p.open) {
+          toast('まだ つながって いません。「🔗 つながる」を おしてね。', 'error', 5000);
+          openModal('connectModal');
+          return;
+        }
+        return sendArticle(a).then(function (ok) {
+          if (ok) toast('おくりました。', 'success');
+          else toast('おくれませんでした。もういちど ためしてね。', 'error');
+        });
+      });
+    });
+
+    function statusBadge(a) {
+      if (a.published) return el('span', { className: 'badge pub', text: 'のせて もらった' });
+      if (a.sent) return el('span', { className: 'badge sent', text: 'おくった' });
+      return el('span', { className: 'badge', text: 'したがき' });
+    }
+
+    function renderMine() {
+      var list = $('mineList');
+      list.textContent = '';
+      var mine = articles.filter(isMine).slice().sort(function (a, b) { return b.updatedAt - a.updatedAt; });
+      $('mineCount').textContent = mine.length + '本';
+
+      if (!mine.length) {
+        list.appendChild(el('p', { className: 'hint', text: 'まだ 記事が ありません。左の らんに 書いて「保存する」を おしてね。' }));
+        updateStorageMeter();
+        return;
+      }
+
+      mine.forEach(function (a) {
+        var item = el('div', { className: 'mine-item' + (a.id === editingId ? ' is-open' : '') });
+        item.appendChild(el('h4', { text: a.title || '（タイトルなし）' }));
+
+        var meta = el('div', { className: 'mine-meta' });
+        meta.appendChild(statusBadge(a));
+        if (a.tag) meta.appendChild(el('span', { text: '🏷️ ' + a.tag }));
+        if (hasPhoto(a)) meta.appendChild(el('span', { text: '📷 写真あり' }));
+        meta.appendChild(el('span', { text: fmtDate(a.updatedAt) }));
+        item.appendChild(meta);
+
+        var actions = el('div', { className: 'mine-actions' });
+
+        var open = el('button', { className: 'btn btn-sub btn-small', text: '✏️ ひらく', attrs: { type: 'button' } });
+        open.addEventListener('click', function () { loadIntoForm(a); });
+        actions.appendChild(open);
+
+        var send = el('button', { className: 'btn btn-send btn-small', text: '📤 おくる', attrs: { type: 'button' } });
+        send.addEventListener('click', function () {
+          if (p2p.role !== 'guest' || !p2p.open) { toast('まだ つながって いません。', 'error'); openModal('connectModal'); return; }
+          sendArticle(a).then(function (ok) {
+            if (ok) toast('おくりました。', 'success');
+            else toast('おくれませんでした。', 'error');
+          });
+        });
+        actions.appendChild(send);
+
+        var copy = el('button', { className: 'btn btn-sub btn-small', text: '📄 コピー', attrs: { type: 'button' } });
+        copy.addEventListener('click', function () {
+          var c = normalizeArticle({
+            title: a.title, body: a.body, reporter: a.reporter, tag: a.tag,
+            createdAt: Date.now(), updatedAt: Date.now(), authorId: myId, authorName: a.reporter
+          });
+          if (!upsertArticle(c)) return;
+          saveArticles(); saveStates(); loadIntoForm(c); refreshDesk();
+          toast('コピーしました。', 'success');
+          // 写真も複製する。同じ Blob を、新しい ID でもう1つ持つ
+          if (!hasPhoto(a)) return;
+          photoDataUrl(a).then(function (dataUrl) {
+            var blob = dataUrl ? dataUrlToBlob(dataUrl) : null;
+            if (!blob) return;
+            return attachPhoto(c, blob).then(function () {
+              saveArticles(); renderMine(); refreshDesk();
+              if (editingId === c.id) setPhoto(null, photoOf(c));
+            });
+          });
+        });
+        actions.appendChild(copy);
+
+        var del = el('button', { className: 'btn btn-danger btn-small', text: '🗑️ けす', attrs: { type: 'button' } });
+        del.addEventListener('click', function () {
+          confirmThen('「' + (a.title || 'この記事') + '」を けしますか。もとに もどせません。', function () {
+            removeArticle(a.id);
+            if (editingId === a.id) loadIntoForm(null);
+            toast('けしました。', 'info');
+          });
+        });
+        actions.appendChild(del);
+
+        item.appendChild(actions);
+        list.appendChild(item);
+      });
+      updateStorageMeter();
+    }
+
+    function removeArticle(id) {
+      var gone = findArticle(id);
+      if (gone) detachPhoto(gone);
+      articles = articles.filter(function (a) { return a.id !== id; });
+      delete states[id];
+      desk.order = desk.order.filter(function (x) { return x !== id; });
+      delete desk.edits[id];
+      saveArticles(); saveStates(); saveDesk();
+      renderMine(); refreshDesk();
+    }
+
+    /* --- ファイルでの受けわたし ------------------------------------- */
+    $('btnExport').addEventListener('click', function () {
+      var mine = articles.filter(isMine);
+      if (!mine.length) { toast('書き出す 記事が ありません。', 'error'); return; }
+      $('btnExport').disabled = true;
+      // ファイルの中では写真も文字にしておく。JSON 1 つで渡しきれる形にするため
+      Promise.all(mine.map(function (a) {
+        return photoDataUrl(a).then(function (dataUrl) {
+          var copy = {};
+          Object.keys(a).forEach(function (k) { copy[k] = a[k]; });
+          copy.image = dataUrl; copy.photoInDb = false;
+          return copy;
+        });
+      })).then(function (list) {
+        var payload = { app: 'digital-newspaper', version: 1, exportedAt: Date.now(), articles: list };
+        var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'newspaper-articles-' + new Date().toISOString().slice(0, 10) + '.json';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        toast('ファイルに 書き出しました。', 'success');
+      }).catch(function () {
+        toast('書き出せませんでした。', 'error');
+      }).then(function () { $('btnExport').disabled = false; });
+    });
+
+    $('btnImport').addEventListener('click', function () { $('importFile').click(); });
+    $('importFile').addEventListener('change', function () {
+      var file = this.files && this.files[0];
+      this.value = '';
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        var data = safeParse(String(reader.result), null);
+        var list = Array.isArray(data) ? data : (data && Array.isArray(data.articles) ? data.articles : null);
+        if (!list) { toast('この ファイルには 記事が 入って いません。', 'error'); return; }
+        var added = [];
+        list.slice(0, LIMIT.articles).forEach(function (raw) {
+          var a = normalizeArticle(raw);
+          a.photoInDb = false;   // ファイルの中の photoInDb は当てにしない
+          if (!a.title && !a.body) return;
+          if (upsertArticle(a)) added.push(a);
+        });
+        saveArticles(); saveStates(); renderMine(); refreshDesk(); updateTagFilterOptions();
+        toast(added.length + '本 読みこみました。', added.length ? 'success' : 'info');
+        // 写真は置き場所へ移す。記事に data URL を抱えたままにしない
+        Promise.all(added.map(stashInlinePhoto)).then(function () {
+          saveArticles(); renderMine(); refreshDesk();
+        });
+      };
+      reader.onerror = function () { toast('ファイルを 読めませんでした。', 'error'); };
+      reader.readAsText(file);
+    });
+
+    /* 記事が data URL のまま写真を抱えていたら、置き場所へ移す。
+       P2P で届いたもの、ファイルから読んだもの、前の版から残っていたものが通る。 */
+    function stashInlinePhoto(a) {
+      if (!a || !a.image) return Promise.resolve(false);
+      var blob = dataUrlToBlob(a.image);
+      if (!blob) { a.image = ''; return Promise.resolve(false); }
+      return attachPhoto(a, blob);
+    }
+
+    /* ===================================================================
+       7.「新聞を つくる」画面
+       =================================================================== */
+    function readConf() {
+      return {
+        ori: $('paperOri').value, dir: $('textDir').value, col: $('colCount').value,
+        fontSize: $('fontSizeRange').value, fontFamily: $('fontFamily').value,
+        titleStyle: $('titleStyle').value, theme: $('themeSelect').value,
+        imgSize: $('imgSizeSelect').value, imgShape: $('imgShapeSelect').value
+      };
+    }
+    function applyConf(c) {
+      if (!c) return;
+      var set = function (id, v) { if (v !== undefined && v !== null && v !== '') $(id).value = v; };
+      set('paperOri', c.ori); set('textDir', c.dir); set('colCount', c.col);
+      set('fontSizeRange', c.fontSize); set('fontFamily', c.fontFamily);
+      set('titleStyle', c.titleStyle); set('themeSelect', c.theme);
+      set('imgSizeSelect', c.imgSize); set('imgShapeSelect', c.imgShape);
+    }
+
+    /* 並び順つきの、いま扱える記事ぜんぶ */
+    function combinedArticles() {
+      var combined = desk.free.concat(articles);
+      if (!desk.order.length) return combined;
+      var ordered = [], rest = [];
+      desk.order.forEach(function (id) {
+        for (var i = 0; i < combined.length; i++) if (combined[i].id === id) { ordered.push(combined[i]); return; }
+      });
+      combined.forEach(function (a) { if (desk.order.indexOf(a.id) < 0) rest.push(a); });
+      return ordered.concat(rest);
+    }
+
+    function stateOf(id) {
+      if (!states[id]) states[id] = normalizeState({ checked: false });
+      return states[id];
+    }
+
+    function selectedArticles() {
+      return combinedArticles().filter(function (a) { return stateOf(a.id).checked; });
+    }
+
+    function refreshDesk() {
+      renderArticleList();
+      renderPaper();
+      $('poolCount').textContent = (articles.length + desk.free.length) + '本';
+    }
+
+    function renderArticleList() {
+      var listDiv = $('articleList');
+      listDiv.textContent = '';
+      var draggable = $('enableDrag').checked;
+      listDiv.classList.toggle('drag-enabled', draggable);
+
+      var query = $('searchInput').value.trim().toLowerCase();
+      var tagFilter = $('tagFilter').value;
+      var onlySelected = $('showSelectedOnly').checked;
+      var fromVal = $('dateFrom').value, toVal = $('dateTo').value;
+      var fromTime = fromVal ? new Date(fromVal + 'T00:00:00').getTime() : 0;
+      var toTime = Infinity;
+      if (toVal) { var d = new Date(toVal + 'T00:00:00'); d.setDate(d.getDate() + 1); toTime = d.getTime(); }
+
+      var shown = 0;
+      combinedArticles().forEach(function (art) {
+        var st = stateOf(art.id);
+        if (onlySelected && !st.checked) return;
+        if (query && (art.title + ' ' + art.reporter + ' ' + art.body).toLowerCase().indexOf(query) < 0) return;
+        if (tagFilter && !art.isFree && art.tag !== tagFilter) return;
+        if (!art.isFree && (art.updatedAt < fromTime || art.updatedAt >= toTime)) return;
+        shown++;
+        listDiv.appendChild(articleRow(art, st, draggable));
+      });
+
+      if (!shown) {
+        listDiv.appendChild(el('p', { className: 'hint', text: '出せる 記事が ありません。「記事を かく」で 書くか、「🔗 つながる」で あつめてね。' }));
+      }
+    }
+
+    function articleRow(art, st, draggable) {
+      var row = el('div', {
+        className: 'article-item' + (st.checked ? ' selected' : '') +
+          (art.isFree ? ' is-free' : (isMine(art) ? '' : ' from-peer'))
+      });
+      row.dataset.id = art.id;
+      if (draggable) { row.draggable = true; attachDrag(row); }
+
+      /* 1段目：チェックと題名 */
+      var main = el('div', { className: 'item-main' });
+      main.appendChild(el('span', { className: 'drag-handle', text: '☰', attrs: { 'aria-hidden': 'true' } }));
+
+      var label = el('label');
+      var cb = el('input', { attrs: { type: 'checkbox' } });
+      cb.checked = st.checked;
+      cb.addEventListener('change', function () {
+        st.checked = cb.checked; saveStates(); refreshDesk(); broadcastStatus();
+      });
+      label.appendChild(cb);
+      label.appendChild(el('span', { className: 'item-title', text: art.title || '（タイトルなし）' }));
+      var who = art.reporter || '';
+      if (!art.isFree && !isMine(art)) who = who + '・とどいた記事';
+      label.appendChild(el('span', { className: 'item-sub', text: who ? '（' + who + '）' : '' }));
+      main.appendChild(label);
+
+      var del = el('button', {
+        className: 'icon-btn', text: '🗑️',
+        attrs: { type: 'button', title: 'この記事をけす', 'aria-label': 'この記事をけす' }
+      });
+      del.addEventListener('click', function () {
+        confirmThen('「' + (art.title || 'この記事') + '」を けしますか。もとに もどせません。', function () {
+          if (art.isFree) {
+            desk.free = desk.free.filter(function (a) { return a.id !== art.id; });
+            delete states[art.id];
+            saveStates(); saveDesk(); refreshDesk();
+          } else {
+            removeArticle(art.id);
+          }
+          toast('けしました。', 'info');
+        });
+      });
+      main.appendChild(del);
+      row.appendChild(main);
+
+      /* 2段目：タグと QR にする URL */
+      var meta = el('div', { className: 'item-row' });
+      if (!art.isFree) {
+        var tagWrap = el('div', { className: 'input-wrapper' });
+        tagWrap.appendChild(el('span', { text: '🏷️', attrs: { 'aria-hidden': 'true' } }));
+        var tagIn = el('input', { attrs: { type: 'text', placeholder: 'タグ', 'aria-label': 'この記事のタグ', maxlength: String(LIMIT.tag) } });
+        tagIn.value = art.tag;
+        tagIn.addEventListener('change', function () {
+          art.tag = tagIn.value.slice(0, LIMIT.tag);
+          art.updatedAt = Date.now();
+          saveArticles(); updateTagFilterOptions(); refreshDesk();
+        });
+        tagWrap.appendChild(tagIn);
+        meta.appendChild(tagWrap);
+      }
+      var qrWrap = el('div', { className: 'input-wrapper' });
+      qrWrap.appendChild(el('span', { text: '🔗', attrs: { 'aria-hidden': 'true' } }));
+      var qrIn = el('input', { attrs: { type: 'text', placeholder: 'どうがなどの URL', 'aria-label': 'QRコードにする URL' } });
+      qrIn.value = st.qrUrl;
+      qrIn.addEventListener('change', function () {
+        var v = qrIn.value.trim();
+        if (v && !/^https?:\/\//i.test(v)) {
+          toast('URL は http または https で はじまる ものだけ QR に できます。', 'error', 5000);
+          qrIn.value = st.qrUrl;
+          return;
+        }
+        st.qrUrl = v; saveStates(); refreshDesk();
+      });
+      qrWrap.appendChild(qrIn);
+      meta.appendChild(qrWrap);
+      row.appendChild(meta);
+
+      /* 3段目：写真の置きかた（えらんでいて写真があるときだけ） */
+      if (st.checked && hasPhoto(art)) {
+        var box = el('div', { className: 'item-settings' });
+        box.appendChild(pickRow('おきかた', st, 'imgPos', [
+          ['top', '上'], ['float-left', '左に まわす'], ['float-right', '右に まわす'], ['bottom', '下']
+        ]));
+        box.appendChild(pickRow('大きさ', st, 'imgSize', [
+          ['default', 'ぜんたいと同じ'], ['0.96', '大'], ['0.7', '中'], ['0.4', '小']
+        ]));
+        box.appendChild(pickRow('かたち', st, 'imgShape', [
+          ['default', 'ぜんたいと同じ'], ['auto', 'そのまま'], ['1/1', '正方形'], ['16/9', 'よこ長'], ['3/4', 'たて長']
+        ]));
+
+        var hideLabel = el('label', { style: 'margin-left:auto; border-left:1px solid #d5dbe1; padding-left:10px;' });
+        var hideCb = el('input', { attrs: { type: 'checkbox' } });
+        hideCb.checked = st.showTitle === false;
+        hideCb.addEventListener('change', function () { st.showTitle = !hideCb.checked; saveStates(); refreshDesk(); });
+        hideLabel.appendChild(hideCb);
+        hideLabel.appendChild(el('span', { text: '見出しを かくす' }));
+        box.appendChild(hideLabel);
+
+        var dropPhoto = el('button', { className: 'btn btn-sub btn-small', text: '📷 写真をけす', attrs: { type: 'button' } });
+        dropPhoto.addEventListener('click', function () {
+          confirmThen('この記事の 写真を けしますか。ほぞん りょうが あきます。', function () {
+            art.updatedAt = Date.now();
+            detachPhoto(art).then(function () {
+              saveArticles(); renderMine(); refreshDesk();
+              if (editingId === art.id) setPhoto(null, '');
+              toast('写真を けしました。', 'info');
+            });
+          });
+        });
+        box.appendChild(dropPhoto);
+        row.appendChild(box);
+      }
+      return row;
+    }
+
+    function pickRow(labelText, st, key, options) {
+      var wrap = el('label');
+      wrap.appendChild(el('span', { text: labelText }));
+      var sel = el('select');
+      options.forEach(function (o) {
+        var opt = el('option', { text: o[1], attrs: { value: o[0] } });
+        if (st[key] === o[0]) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      sel.addEventListener('change', function () { st[key] = sel.value; saveStates(); renderPaper(); });
+      wrap.appendChild(sel);
+      return wrap;
+    }
+
+    /* --- 並べかえ ----------------------------------------------------- */
+    function attachDrag(node) {
+      node.addEventListener('dragstart', function () { node.classList.add('dragging'); });
+      node.addEventListener('dragend', function () {
+        node.classList.remove('dragging');
+        desk.order = Array.prototype.map.call(
+          document.querySelectorAll('#articleList .article-item'), function (e) { return e.dataset.id; });
+        saveDesk(); refreshDesk();
+      });
+    }
+    $('articleList').addEventListener('dragover', function (e) {
+      e.preventDefault();
+      var dragging = document.querySelector('.article-item.dragging');
+      if (!dragging) return;
+      var after = null, closest = Number.NEGATIVE_INFINITY;
+      Array.prototype.forEach.call(this.querySelectorAll('.article-item:not(.dragging)'), function (child) {
+        var box = child.getBoundingClientRect();
+        var offset = e.clientY - box.top - box.height / 2;
+        if (offset < 0 && offset > closest) { closest = offset; after = child; }
+      });
+      if (after) this.insertBefore(dragging, after); else this.appendChild(dragging);
+    });
+
+    /* --- 紙面を組む --------------------------------------------------- */
+    /* QR の実画素は、CSS 上の大きさの 2 倍を下限にする。
+       これは紙に刷って配るものなので、画面の解像度だけに合わせない。
+       先生が dpr 1 の PC で作って印刷することがあり、そのとき端末に
+       合わせると 50×50 の実画素しか無い QR が刷られる。
+       実測：50×50 では 73 文字の URL が読み取れず、100×100 で読めた。
+       画面が高精細ならそちらに合わせる（画面でも粗く見せないため）。 */
+    var QR_CSS_PX = 50;
+    function qrScale() { return Math.max(2, Math.min(4, window.devicePixelRatio || 1)); }
+
+    function drawQr(canvas, url) {
+      var px = Math.round(QR_CSS_PX * qrScale());
+      canvas.width = canvas.height = px;
+      canvas.style.width = canvas.style.height = QR_CSS_PX + 'px';
+      try {
+        window.QrCreator.render({ text: url, radius: 0, ecLevel: 'L', fill: '#000000', background: '#ffffff', size: px }, canvas);
+      } catch (e) {
+        // 描けなかったときに空の四角を刷らせない。読めない QR が紙に載るのが
+        // いちばん困る（見た目では気づけない）。
+        canvas.parentNode.parentNode.removeChild(canvas.parentNode);
+      }
+    }
+
+    function renderPaper() {
+      var container = $('articlesContainer');
+      container.textContent = '';
+      var globalScale = $('imgSizeSelect').value;
+      var globalShape = $('imgShapeSelect').value;
+      var pending = [];
+
+      selectedArticles().forEach(function (art) {
+        var st = stateOf(art.id);
+        var box = el('div', { className: 'article-box' });
+        var edits = desk.edits[art.id] || {};
+
+        var head = document.createDocumentFragment();
+        if (st.showTitle !== false) {
+          head.appendChild(editable('article-title', art.id, 'title',
+            edits.title !== undefined ? edits.title : art.title));
+          head.appendChild(editable('article-meta', art.id, 'reporter',
+            edits.reporter !== undefined ? edits.reporter : art.reporter));
+        }
+        var body = editable('article-body', art.id, 'body',
+          edits.body !== undefined ? edits.body : art.body);
+
+        var img = null;
+        var photoSrc = photoOf(art);
+        if (photoSrc) {
+          var scale = (st.imgSize && st.imgSize !== 'default') ? st.imgSize : globalScale;
+          var shape = (st.imgShape && st.imgShape !== 'default') ? st.imgShape : globalShape;
+          var style = 'width:calc(var(--col-base-px) * ' + scale + ');';
+          if (shape === 'auto') style += 'height:auto; aspect-ratio:auto; --local-fit:contain;';
+          else style += 'aspect-ratio:' + shape + '; --local-fit:cover;';
+          var cls = 'article-img-wrapper';
+          if (st.imgPos === 'float-left') cls += ' img-float-left';
+          if (st.imgPos === 'float-right') cls += ' img-float-right';
+          img = el('div', { className: cls, style: style });
+          var im = el('img', { attrs: { alt: art.title ? art.title + 'の写真' : '記事の写真', referrerpolicy: 'no-referrer' } });
+          im.src = photoSrc;
+          img.appendChild(im);
+        }
+
+        var qr = null;
+        if (st.qrUrl && /^https?:\/\//i.test(st.qrUrl)) {
+          qr = el('div', { className: 'qr-container' });
+          var canvas = el('canvas');
+          qr.appendChild(canvas);
+          qr.appendChild(el('div', { className: 'qr-label', text: 'LINK' }));
+          pending.push({ canvas: canvas, url: st.qrUrl });
+        }
+
+        box.appendChild(head);
+        if (img && st.imgPos !== 'bottom') box.appendChild(img);
+        box.appendChild(body);
+        if (qr) box.appendChild(qr);
+        if (img && st.imgPos === 'bottom') box.appendChild(img);
+        container.appendChild(box);
+      });
+
+      // 段組みの幅は貼りつけたあとでないと決まらないので、レイアウトを先に当てる
+      updateLayout();
+      pending.forEach(function (p) { drawQr(p.canvas, p.url); });
+    }
+
+    function editable(className, id, field, text) {
+      var node = el('div', { className: className, text: text, attrs: { contenteditable: 'true', spellcheck: 'false' } });
+      node.addEventListener('blur', function () {
+        if (!desk.edits[id]) desk.edits[id] = {};
+        desk.edits[id][field] = node.textContent;
+        saveDesk();
+      });
+      return node;
+    }
+
+    function updateLayout() {
+      var ori = $('paperOri').value;
+      var dir = $('textDir').value;
+      var col = parseInt($('colCount').value, 10) || 3;
+
+      $('paperArea').className =
+        (ori === 'h' ? 'page-a4-h' : 'page-a4-v') + ' font-' + $('fontFamily').value + ' theme-' + $('themeSelect').value;
+
+      $('articlesContainer').className =
+        'articles-container cols-' + col + (dir === 'vertical' ? ' vertical-mode' : '') + ' title-' + $('titleStyle').value;
+
+      $('dynamic-print-style').textContent =
+        ori === 'h' ? '@page{size:A4 landscape;margin:0}' : '@page{size:A4 portrait;margin:0}';
+
+      // 段の幅（写真の大きさの基準になる）
+      var mmToPx = 3.78;
+      var paperW = (ori === 'h' ? 297 : 210) * mmToPx;
+      var padding = 24 * mmToPx;
+      var gap = (col === 2 ? 30 : col === 3 ? 20 : col === 4 ? 15 : 0) * mmToPx;
+      var colWidth = ((paperW - padding) - (gap * (col - 1))) / col;
+      document.documentElement.style.setProperty('--col-base-px', colWidth + 'px');
+    }
+
+    function updateFontSize() {
+      var v = $('fontSizeRange').value;
+      document.documentElement.style.setProperty('--base-font-size', v + 'px');
+      $('fontSizeValue').textContent = v + 'px';
+    }
+
+    function updateTagFilterOptions() {
+      var sel = $('tagFilter');
+      var keep = sel.value;
+      sel.textContent = '';
+      sel.appendChild(el('option', { text: '🏷️ ぜんぶの タグ', attrs: { value: '' } }));
+      var seen = {};
+      articles.forEach(function (a) { if (a.tag) seen[a.tag] = true; });
+      tags.forEach(function (t) { seen[t.name] = true; });
+      Object.keys(seen).sort().forEach(function (name) {
+        sel.appendChild(el('option', { text: '🏷️ ' + name, attrs: { value: name } }));
+      });
+      sel.value = keep;
+      if (sel.value !== keep) sel.value = '';
+    }
+
+    ['paperOri', 'textDir', 'colCount', 'fontFamily', 'themeSelect', 'titleStyle'].forEach(function (id) {
+      $(id).addEventListener('change', function () { updateLayout(); saveDesk(); });
+    });
+    ['imgSizeSelect', 'imgShapeSelect'].forEach(function (id) {
+      $(id).addEventListener('change', function () { renderPaper(); saveDesk(); });
+    });
+    $('fontSizeRange').addEventListener('input', function () { updateFontSize(); });
+    $('fontSizeRange').addEventListener('change', function () { saveDesk(); });
+    ['searchInput', 'tagFilter', 'dateFrom', 'dateTo', 'showSelectedOnly', 'enableDrag'].forEach(function (id) {
+      $(id).addEventListener('input', renderArticleList);
+      $(id).addEventListener('change', renderArticleList);
+    });
+    $('btnClearDate').addEventListener('click', function () {
+      $('dateFrom').value = ''; $('dateTo').value = ''; renderArticleList();
+    });
+    $('btnPrint').addEventListener('click', function () { flushEdits(); window.print(); });
+    $('paperTitle').addEventListener('blur', saveDesk);
+    $('paperDate').addEventListener('blur', saveDesk);
+
+    /* いま触っている contenteditable の中身を確定させる。
+       印刷や保存の直前に呼ぶ。blur を待っていると、打ったばかりの文字が
+       紙にも保存にも入らない。 */
+    function flushEdits() {
+      var a = document.activeElement;
+      if (a && a.getAttribute && a.getAttribute('contenteditable') === 'true') a.blur();
+      saveDesk();
+    }
+
+    /* --- 自由記述らん ------------------------------------------------- */
+    $('btnFree').addEventListener('click', function () { openModal('freeModal'); });
+    $('btnFreeAdd').addEventListener('click', function () {
+      var title = $('freeTitle').value.trim();
+      if (!title) { toast('見出しを 書いてね。', 'error'); return; }
+      var a = normalizeArticle({
+        id: 'free_' + uuid(),
+        title: title,
+        reporter: $('freeReporter').value.trim() || '編集部',
+        body: $('freeBody').value,
+        authorId: myId, isFree: true
+      });
+      a.isFree = true;
+      desk.free.push(a);
+      states[a.id] = normalizeState({ checked: true });
+      desk.order.unshift(a.id);
+      saveStates(); saveDesk(); refreshDesk();
+      closeModal('freeModal');
+      $('freeBody').value = '';
+      toast('らんを ふやしました。', 'success');
+    });
+
+    /* --- 一時保存と呼び出し ------------------------------------------- */
+    function snapshot() {
+      flushEdits();
+      return {
+        savedAt: Date.now(),
+        free: desk.free, order: desk.order, edits: desk.edits,
+        states: states,
+        paper: { title: $('paperTitle').textContent, date: $('paperDate').textContent },
+        conf: readConf()
+      };
+    }
+
+    $('btnDeskSave').addEventListener('click', function () { openModal('saveModal'); });
+    $('btnSaveExec').addEventListener('click', function () {
+      var name = $('saveName').value.trim();
+      if (!name) { toast('保存する 名前を 入れてね。', 'error'); return; }
+      var saves = lsRead(KEY.saves, {}) || {};
+      // 同じ名前は上書きする。旧版は同名でも足していたので、
+      // 呼び出しの一覧に同じ名前が並び、どれが最新か分からなくなっていた。
+      saves[name] = snapshot();
+      if (!lsWrite(KEY.saves, saves)) { reportSaveFailure(); return; }
+      closeModal('saveModal');
+      toast('「' + name + '」で 保存しました。', 'success');
+    });
+
+    $('btnDeskLoad').addEventListener('click', function () {
+      var saves = lsRead(KEY.saves, {}) || {};
+      var sel = $('loadSelect');
+      sel.textContent = '';
+      var names = Object.keys(saves).sort(function (a, b) { return (saves[b].savedAt || 0) - (saves[a].savedAt || 0); });
+      if (!names.length) {
+        sel.appendChild(el('option', { text: '保存した ものは ありません', attrs: { value: '' } }));
+      } else {
+        names.forEach(function (n) {
+          sel.appendChild(el('option', { text: n + '（' + fmtDate(saves[n].savedAt) + '）', attrs: { value: n } }));
+        });
+      }
+      openModal('loadModal');
+    });
+    $('btnLoadExec').addEventListener('click', function () {
+      var name = $('loadSelect').value;
+      if (!name) { closeModal('loadModal'); return; }
+      var saves = lsRead(KEY.saves, {}) || {};
+      var d = saves[name];
+      if (!d) { toast('その 保存が 見つかりません。', 'error'); return; }
+
+      desk.free = (Array.isArray(d.free) ? d.free : []).map(function (a) {
+        var n = normalizeArticle(a); n.isFree = true; return n;
+      });
+      desk.order = Array.isArray(d.order) ? d.order : [];
+      desk.edits = (d.edits && typeof d.edits === 'object') ? d.edits : {};
+      if (d.states && typeof d.states === 'object') {
+        states = {};
+        Object.keys(d.states).forEach(function (k) { states[k] = normalizeState(d.states[k]); });
+      }
+      // 新聞名と発行日も戻す。ここが抜けていると、先生や係の子が
+      // いちばん先に直すところが毎回打ち直しになる。
+      if (d.paper) {
+        if (d.paper.title) $('paperTitle').textContent = d.paper.title;
+        if (d.paper.date) $('paperDate').textContent = d.paper.date;
+      }
+      applyConf(d.conf);
+      updateFontSize(); saveStates(); saveDesk(); refreshDesk();
+      closeModal('loadModal');
+      toast('もどしました。', 'success');
+    });
+
+    /* --- デザインテンプレート ----------------------------------------- */
+    $('btnTemplate').addEventListener('click', function () {
+      var tpl = lsRead(KEY.templates, {}) || {};
+      var sel = $('templateSelect');
+      sel.textContent = '';
+      var names = Object.keys(tpl).sort();
+      if (!names.length) sel.appendChild(el('option', { text: '保存した ものは ありません', attrs: { value: '' } }));
+      else names.forEach(function (n) { sel.appendChild(el('option', { text: n, attrs: { value: n } })); });
+      openModal('templateModal');
+    });
+    $('btnTplSave').addEventListener('click', function () {
+      var name = $('templateName').value.trim();
+      if (!name) { toast('テンプレートの 名前を 入れてね。', 'error'); return; }
+      var tpl = lsRead(KEY.templates, {}) || {};
+      tpl[name] = readConf();
+      if (!lsWrite(KEY.templates, tpl)) { reportSaveFailure(); return; }
+      $('templateName').value = '';
+      $('btnTemplate').click();
+      toast('「' + name + '」を 保存しました。', 'success');
+    });
+    $('btnTplLoad').addEventListener('click', function () {
+      var name = $('templateSelect').value;
+      if (!name) return;
+      var tpl = lsRead(KEY.templates, {}) || {};
+      if (!tpl[name]) { toast('その テンプレートが 見つかりません。', 'error'); return; }
+      applyConf(tpl[name]);
+      updateFontSize(); renderPaper(); saveDesk();
+      closeModal('templateModal');
+      toast('「' + name + '」を あてはめました。', 'success');
+    });
+
+    /* --- タグの設定 --------------------------------------------------- */
+    $('btnTags').addEventListener('click', function () {
+      editingTags = tags.map(function (t) { return { icon: t.icon, name: t.name, ruby: t.ruby }; });
+      renderTagEditor();
+      openModal('tagsModal');
+    });
+    function renderTagEditor() {
+      var box = $('tagListContainer');
+      box.textContent = '';
+      editingTags.forEach(function (t, i) {
+        var row = el('div', { className: 'tag-row' });
+        row.appendChild(tagField(t, i, 'icon', '絵', 'タグの絵文字', '4rem'));
+        row.appendChild(tagField(t, i, 'name', '名前', 'タグの名前', ''));
+        row.appendChild(tagField(t, i, 'ruby', 'ふりがな', 'タグのふりがな', ''));
+        var del = el('button', {
+          className: 'btn btn-danger btn-small', text: '×',
+          // 幅も 44px 要る。高さだけ足しても、細い縦棒のままで押しにくい
+          style: 'min-width:44px;',
+          attrs: { type: 'button', 'aria-label': 'このタグを けす' }
+        });
+        del.addEventListener('click', function () { editingTags.splice(i, 1); renderTagEditor(); });
+        row.appendChild(del);
+        box.appendChild(row);
+      });
+      if (!editingTags.length) box.appendChild(el('p', { className: 'hint', text: 'タグが ありません。下の ボタンで ふやしてね。' }));
+    }
+    function tagField(t, i, key, placeholder, label, width) {
+      var input = el('input', {
+        attrs: { type: 'text', placeholder: placeholder, 'aria-label': label, maxlength: key === 'icon' ? '4' : '30' },
+        style: width ? ('width:' + width + '; text-align:center;') : 'flex:1;'
+      });
+      input.value = t[key] || '';
+      input.addEventListener('input', function () { editingTags[i][key] = input.value; });
+      return input;
+    }
+    $('btnAddTag').addEventListener('click', function () {
+      editingTags.push({ icon: '🏷️', name: '', ruby: '' });
+      renderTagEditor();
+    });
+    $('btnTagsSave').addEventListener('click', function () {
+      tags = normalizeTags(editingTags);
+      saveTags(); renderTagChoices(); updateTagFilterOptions();
+      broadcastTags();
+      closeModal('tagsModal');
+      toast('タグを 保存しました。', 'success');
+    });
+
+    /* ===================================================================
+       8. P2P（PeerJS / WebRTC）
+       ===================================================================
+       役わりの区分は「あつめる（host）」と「おくる（guest）」だけで、
+       だれがどちらを選んでもよい。あいことばは「あて先」であって
+       合いかぎではない。知っている人はだれでも入れる。
+       =================================================================== */
+    var p2p = { role: null, peer: null, conns: [], hostConn: null, open: false, code: '' };
+
+    function generateRoomCode() {
+      var n = CODE_ALPHABET.length;
+      var out = '';
+      var bytes = new Uint32Array(CODE_LENGTH);
+      if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(bytes);
+      else for (var k = 0; k < CODE_LENGTH; k++) bytes[k] = Math.floor(Math.random() * 0xffffffff);
+      // 剰余の偏りを避けるため、割り切れる範囲だけを使う
+      var limit = Math.floor(0xffffffff / n) * n;
+      for (var i = 0; i < CODE_LENGTH; i++) {
+        var v = bytes[i];
+        while (v >= limit) v = Math.floor(Math.random() * 0xffffffff);
+        out += CODE_ALPHABET.charAt(v % n);
+      }
+      return out;
+    }
+    function normalizeRoomCode(raw) {
+      return String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODE_LENGTH);
+    }
+    function formatRoomCode(code) {
+      var c = normalizeRoomCode(code);
+      return c.length === CODE_LENGTH ? c.slice(0, 5) + '-' + c.slice(5) : c;
+    }
+    function peerIdFor(code) { return PEER_ID_PREFIX + normalizeRoomCode(code); }
+
+    function setChip(text, cls) {
+      var chip = $('connChip');
+      chip.textContent = text;
+      chip.className = 'chip' + (cls ? ' ' + cls : '');
+    }
+
+    function destroyPeer() {
+      if (p2p.peer) { try { p2p.peer.destroy(); } catch (e) {} }
+      p2p = { role: null, peer: null, conns: [], hostConn: null, open: false, code: '' };
+      $('hostIdle').hidden = false; $('hostActive').hidden = true;
+      $('guestIdle').hidden = false; $('guestActive').hidden = true;
+      setChip('オフライン', '');
+      $('sendHint').textContent = '';
+    }
+
+    function peerAvailable() {
+      if (typeof window.Peer === 'function') return true;
+      toast('つうしんの ぶひんを 読みこめませんでした。ページを 読みこみ直してね。', 'error', 7000);
+      return false;
+    }
+
+    /* --- あつめる側 ---------------------------------------------------- */
+    function openRoom(attempt) {
+      if (!peerAvailable()) return;
+      destroyPeer();
+      p2p.role = 'host';
+      setChip('じゅんび中…', 'wait');
+      var code = generateRoomCode();
+      var peer = new window.Peer(peerIdFor(code));
+      p2p.peer = peer;
+
+      peer.on('open', function () {
+        p2p.code = code; p2p.open = true;
+        $('roomCodeText').textContent = formatRoomCode(code);
+        $('hostIdle').hidden = true; $('hostActive').hidden = false;
+        $('guestIdle').hidden = true;
+        updateHostStatus();
+        setChip('あつめ中 0人', 'on');
+        toast('へやを ひらきました。あいことばを つたえてね。', 'success');
+      });
+
+      peer.on('connection', function (conn) {
+        conn.on('open', function () {
+          if (p2p.conns.indexOf(conn) < 0) p2p.conns.push(conn);
+          updateHostStatus();
+          send(conn, { t: 'welcome', tags: tags });
+          send(conn, { t: 'status', published: publishedIds() });
+        });
+        conn.on('data', function (data) { onHostData(conn, data); });
+        conn.on('close', function () { dropConn(conn); });
+        conn.on('error', function () { dropConn(conn); });
+      });
+
+      peer.on('error', function (err) {
+        // 10 文字のあいことばなので、ほかの教室とぶつかることはまず無い。
+        // それでも万一ぶつかったときは、別のあいことばでやり直す。
+        if (err && err.type === 'unavailable-id') {
+          if ((attempt || 0) < 5) { openRoom((attempt || 0) + 1); return; }
+          toast('へやを ひらけませんでした。もういちど ためしてね。', 'error', 6000);
+        } else if (err && (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error')) {
+          toast('つうしんの サーバーに つながりません。ネットワークを かくにん してね。', 'error', 7000);
+        } else { return; }
+        destroyPeer();
+      });
+    }
+
+    function dropConn(conn) {
+      p2p.conns = p2p.conns.filter(function (c) { return c !== conn; });
+      updateHostStatus();
+    }
+    function updateHostStatus() {
+      var n = p2p.conns.length;
+      $('hostStatus').textContent = 'つながっている たんまつ：' + n + '台';
+      if (p2p.role === 'host') setChip('あつめ中 ' + n + '人', 'on');
+    }
+
+    function onHostData(conn, data) {
+      var msg = (typeof data === 'string') ? safeParse(data, null) : data;
+      if (!msg || typeof msg !== 'object') return;
+
+      if (msg.t === 'article') {
+        var a = normalizeArticle(msg.article);
+        if (!a.title && !a.body) return;
+        // 送り主が名のる「のせてもらった」「おくった」は当てにしない。
+        // 掲載したかどうかを決めるのは、あつめている側だけ。
+        a.sent = true;
+        if (!upsertArticle(a, false)) return;
+        a.published = stateOf(a.id).checked;
+        saveArticles(); saveStates(); updateTagFilterOptions(); refreshDesk();
+        send(conn, { t: 'ack', ids: [a.id] });
+        broadcastStatus();
+        toast('記事が とどきました：' + (a.title || '（タイトルなし）'), 'success', 4000);
+        // 届いた写真は data URL で来る。置き場所へ移してから保存し直す。
+        // 移す前に保存しても文字は残るので、写真が入らなくても記事は失われない。
+        stashInlinePhoto(a).then(function () {
+          saveArticles(); renderMine(); refreshDesk();
+        });
+        return;
+      }
+
+      if (msg.t === 'hello') {
+        send(conn, { t: 'welcome', tags: tags });
+        send(conn, { t: 'status', published: publishedIds() });
+      }
+    }
+
+    function publishedIds() {
+      return selectedArticles().map(function (a) { return a.id; });
+    }
+
+    function send(conn, payload) {
+      if (!conn || !conn.open) return false;
+      try { conn.send(payload); return true; } catch (e) { return false; }
+    }
+
+    var statusTimer = null;
+    function broadcastStatus() {
+      if (p2p.role !== 'host') return;
+      clearTimeout(statusTimer);
+      statusTimer = setTimeout(function () {
+        var ids = publishedIds();
+        p2p.conns.forEach(function (c) { send(c, { t: 'status', published: ids }); });
+      }, 400);
+    }
+    function broadcastTags() {
+      if (p2p.role !== 'host') return;
+      p2p.conns.forEach(function (c) { send(c, { t: 'welcome', tags: tags }); });
+    }
+
+    /* --- おくる側 ------------------------------------------------------ */
+    function joinRoom(rawCode) {
+      if (!peerAvailable()) return;
+      var code = normalizeRoomCode(rawCode);
+      if (code.length !== CODE_LENGTH) {
+        toast('あいことばは ' + CODE_LENGTH + '文字です。もういちど 入れてね。', 'error');
+        return;
+      }
+      destroyPeer();
+      p2p.role = 'guest';
+      setChip('つなぎ中…', 'wait');
+      var peer = new window.Peer();
+      p2p.peer = peer;
+
+      peer.on('open', function () {
+        var conn = peer.connect(peerIdFor(code), { reliable: true });
+        conn.on('open', function () {
+          p2p.hostConn = conn; p2p.open = true; p2p.code = code;
+          $('guestIdle').hidden = true; $('guestActive').hidden = false;
+          $('hostIdle').hidden = true;
+          $('guestStatus').textContent = 'つながりました（あいことば ' + formatRoomCode(code) + '）';
+          setChip('つながった', 'on');
+          $('sendHint').textContent = 'つながっています。「送る」で とどきます。';
+          send(conn, { t: 'hello', clientId: myId });
+          // 切れているあいだに書いた記事を、つながった瞬間に送り直す。
+          resendUnsent();
+          toast('つながりました。', 'success');
+        });
+        conn.on('data', function (data) { onGuestData(data); });
+        conn.on('close', function () {
+          if (p2p.role !== 'guest') return;
+          p2p.open = false; p2p.hostConn = null;
+          setChip('きれました', 'wait');
+          $('guestStatus').textContent = 'つながりが きれました。';
+          $('sendHint').textContent = 'つながりが きれました。もういちど つないでね。';
+          toast('つながりが きれました。', 'error');
+        });
+      });
+
+      peer.on('error', function (err) {
+        setChip('オフライン', '');
+        if (err && err.type === 'peer-unavailable') {
+          toast('あつめている たんまつが 見つかりません。あいことばを かくにん してね。', 'error', 6000);
+        } else if (err && (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error')) {
+          toast('つうしんの サーバーに つながりません。ネットワークを かくにん してね。', 'error', 7000);
+        } else {
+          toast('つながりませんでした。', 'error');
+        }
+      });
+    }
+
+    function onGuestData(data) {
+      var msg = (typeof data === 'string') ? safeParse(data, null) : data;
+      if (!msg || typeof msg !== 'object') return;
+
+      if (msg.t === 'welcome' && Array.isArray(msg.tags)) {
+        tags = normalizeTags(msg.tags);
+        saveTags(); renderTagChoices(); updateTagFilterOptions();
+        return;
+      }
+      if (msg.t === 'ack' && Array.isArray(msg.ids)) {
+        msg.ids.forEach(function (id) {
+          var a = findArticle(id);
+          if (a) a.sent = true;
+        });
+        saveArticles(); renderMine();
+        return;
+      }
+      if (msg.t === 'status' && Array.isArray(msg.published)) {
+        var on = {};
+        msg.published.forEach(function (id) { if (typeof id === 'string') on[id] = true; });
+        articles.forEach(function (a) { if (isMine(a)) a.published = !!on[a.id]; });
+        saveArticles(); renderMine();
+      }
+    }
+
+    /* 写真は置き場所にあるので、送るときだけ data URL に戻す。
+       そのぶん非同期になる。 */
+    function sendArticle(a) {
+      if (p2p.role !== 'guest' || !p2p.hostConn || !p2p.hostConn.open) return Promise.resolve(false);
+      return photoDataUrl(a).then(function (dataUrl) {
+        if (p2p.role !== 'guest' || !p2p.hostConn || !p2p.hostConn.open) return false;
+        var payload = normalizeArticle(a);
+        payload.authorId = myId;
+        payload.image = dataUrl;
+        payload.photoInDb = false;
+        var ok = send(p2p.hostConn, { t: 'article', article: payload });
+        if (ok) {
+          // 相手の ack が返ってきて初めて「おくった」にする。
+          // ここで先に立てると、届いていないのに届いた顔になる。
+          $('sendHint').textContent = 'おくりました。とどいたら「おくった」に かわります。';
+        }
+        return ok;
+      });
+    }
+
+    function resendUnsent() {
+      var waiting = articles.filter(function (a) { return isMine(a) && !a.sent; });
+      if (!waiting.length) return;
+      // 1本ずつ順に送る。まとめて投げると、写真つきが重なったときに詰まる
+      waiting.reduce(function (chain, a) {
+        return chain.then(function () { return sendArticle(a); });
+      }, Promise.resolve());
+      toast(waiting.length + '本を おくりました。', 'info');
+    }
+
+    $('btnConnect').addEventListener('click', function () { openModal('connectModal'); });
+    $('btnHost').addEventListener('click', function () { openRoom(0); });
+    $('btnGuest').addEventListener('click', function () { joinRoom($('roomCodeInput').value); });
+    $('roomCodeInput').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); joinRoom(this.value); }
+    });
+    $('btnCloseRoom').addEventListener('click', function () {
+      destroyPeer(); toast('へやを とじました。', 'info');
+    });
+    $('btnLeaveRoom').addEventListener('click', function () {
+      destroyPeer(); toast('つながりを きりました。', 'info');
+    });
+    $('btnCopyCode').addEventListener('click', function () {
+      var text = $('roomCodeText').textContent;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(
+          function () { toast('コピーしました。', 'success'); },
+          function () { toast('コピーできませんでした。手で うつしてね。', 'error'); }
+        );
+      } else {
+        toast('この ブラウザでは コピーできません。手で うつしてね。', 'error');
+      }
+    });
+
+    /* ===================================================================
+       9. 画面の切りかえ
+       =================================================================== */
+    function setMode(mode) {
+      var write = mode !== 'desk';
+      $('viewWrite').hidden = !write;
+      $('viewDesk').hidden = write;
+      $('tabWrite').setAttribute('aria-selected', String(write));
+      $('tabDesk').setAttribute('aria-selected', String(!write));
+      lsWrite(KEY.mode, write ? 'write' : 'desk');
+      if (!write) { refreshDesk(); }
+      window.scrollTo(0, 0);
+    }
+    $('tabWrite').addEventListener('click', function () { setMode('write'); });
+    $('tabDesk').addEventListener('click', function () { flushEdits(); setMode('desk'); });
+
+    /* ===================================================================
+       10. PWA（インストール・更新・オフライン）
+       =================================================================== */
+    (function installButton() {
+      var btn = $('btnInstall');
+      var standalone = window.matchMedia('(display-mode: standalone)').matches ||
+        window.navigator.standalone === true;
+      if (standalone) return;
+
+      var isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+      function show() { btn.hidden = false; }
+      if (window.__deferredInstallPrompt || isIos) show();
+      window.addEventListener('pwa-installable', show);
+      window.addEventListener('pwa-installed', function () { btn.hidden = true; });
+
+      btn.addEventListener('click', function () {
+        var prompt = window.__deferredInstallPrompt;
+        if (prompt) {
+          prompt.prompt();
+          prompt.userChoice.then(function () { window.__deferredInstallPrompt = null; btn.hidden = true; });
+          return;
+        }
+        // iPad と iPhone の Safari は「入れられます」の合図を出さない仕様。
+        // 出ないぶん、手順のほうを画面に出す。
+        toast('Safari の「共有」ボタン → 「ホーム画面に追加」で 入れられます。', 'info', 8000);
+      });
+    })();
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('./sw.js').then(function (reg) {
+          var bar = $('updateBar');
+          function announce(waiting) {
+            if (!waiting) return;
+            bar.classList.add('show');
+            $('btnApplyUpdate').onclick = function () {
+              waiting.postMessage({ type: 'SKIP_WAITING' });
+              navigator.serviceWorker.addEventListener('controllerchange', function once() {
+                navigator.serviceWorker.removeEventListener('controllerchange', once);
+                window.location.reload();
+              });
+            };
+          }
+          announce(reg.waiting);
+          reg.addEventListener('updatefound', function () {
+            var sw = reg.installing;
+            if (!sw) return;
+            sw.addEventListener('statechange', function () {
+              if (sw.state === 'installed' && navigator.serviceWorker.controller) announce(reg.waiting || sw);
+            });
+          });
+        }).catch(function () { /* オフラインで開いたときは登録できない。動作には影響しない */ });
+      });
+    }
+
+    /* ソフトキーボードで、いちばん下のボタンが隠れるのを防ぐ。
+       iPad と Android では、キーボードが出ても body の高さは変わらない。 */
+    if (window.visualViewport) {
+      var vv = window.visualViewport;
+      var syncKeyboard = function () {
+        var inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+        document.documentElement.style.setProperty('--kb-inset', Math.round(inset) + 'px');
+      };
+      vv.addEventListener('resize', syncKeyboard);
+      vv.addEventListener('scroll', syncKeyboard);
+      syncKeyboard();
+    }
+
+    /* Chromebook はメモリが足りなくなるとタブを黙って捨てる。
+       そのとき unload は来ないが pagehide は来る。ここで書いておかないと、
+       書いていた記事も紙面の直しも、次に開いたときに消えている。 */
+    window.addEventListener('pagehide', function () {
+      flushEdits();
+      if (editingId && $('fTitle').value.trim()) saveFromForm(true);
+      saveArticles(); saveStates();
+    });
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'hidden') { flushEdits(); saveArticles(); saveStates(); }
+    });
+
+    /* ===================================================================
+       11. 立ちあげ
+       =================================================================== */
+    (function init() {
+      renderTagChoices();
+      updateTagFilterOptions();
+
+      $('paperTitle').textContent = desk.paper.title || '学級新聞';
+      $('paperDate').textContent = desk.paper.date || todayLabel();
+      applyConf(desk.conf);
+      updateFontSize();
+
+      // 記事が1本も選ばれていなければ、上から3本にチェックを入れておく。
+      // 開いた瞬間に白紙だと、何をすればよいか分からない。
+      var anyChecked = articles.concat(desk.free).some(function (a) { return stateOf(a.id).checked; });
+      if (!anyChecked) {
+        combinedArticles().slice(0, 3).forEach(function (a) { stateOf(a.id).checked = true; });
+        saveStates();
+      }
+
+      renderMine();
+      refreshDesk();
+      updateStorageMeter();
+      setMode(lsRead(KEY.mode, 'write') === 'desk' ? 'desk' : 'write');
+      setChip('オフライン', '');
+      hydratePhotos();
+    })();
+
+    /* 写真を置き場所から読みこむ。
+       文字は localStorage から同期で読めているので、画面はもう出ている。
+       写真だけが少し遅れて出る形にしてある（起動を待たせないため）。 */
+    function hydratePhotos() {
+      // 溜まったものを消されにくくする。断られても動作は変わらない
+      if (navigator.storage && navigator.storage.persist) {
+        navigator.storage.persist().catch(function () {});
+      }
+
+      var withPhoto = articles.filter(function (a) { return a.photoInDb; });
+      Promise.all(withPhoto.map(function (a) {
+        return getPhoto(a.id).then(function (blob) {
+          if (blob) setPhotoUrl(a.id, blob);
+          else a.photoInDb = false;   // 置き場所から消えていた
+        });
+      })).then(function () {
+        // 前の版から残っている、記事が data URL を抱えたままのものを移す
+        var inline = articles.filter(function (a) { return !!a.image; });
+        return Promise.all(inline.map(stashInlinePhoto)).then(function () {
+          return inline.length || withPhoto.length;
+        });
+      }).then(function (touched) {
+        if (touched) { saveArticles(); renderMine(); refreshDesk(); }
+        return sweepOrphanPhotos();
+      }).then(runStorageMeter);
+    }
+
+    /* 記事が消えたのに写真だけ残っている、を掃除する。
+       記事が1本も無いときは何もしない。localStorage だけが消えた直後に
+       走ると、残っている写真を全部消してしまうため。 */
+    function sweepOrphanPhotos() {
+      if (!articles.length) return Promise.resolve();
+      return photoKeys().then(function (keys) {
+        if (!Array.isArray(keys)) return;
+        var alive = {};
+        articles.forEach(function (a) { alive[a.id] = true; });
+        var orphans = keys.filter(function (k) { return !alive[k]; });
+        return Promise.all(orphans.map(dropPhoto));
+      });
+    }
+
+  })();
+  </script>
+</body>
 </html>

@@ -1,11 +1,11 @@
-# Apps Script のローカル設定。スクリプトIDが入るのでコミットしない
-.clasp.json
-.clasprc.json
-
 # 秘密情報
 .env
 .env.*
 !.env.example
+
+# note の画面写真を撮り直すときに作る、撮影用の写し
+# （docs/note/capture/prepare.mjs が作る。配るものではない）
+.capture/
 
 # Node（点検スクリプトを動かしたときに出る）
 # package-lock.json は、依存を足したときに版を固定するため意図的に含める
@@ -18,6 +18,3 @@ Thumbs.db
 *.swp
 .idea/
 .vscode/
-
-# 反映前のGASの控え（CIの成果物として持ち出すので、リポジトリには置かない）
-dist/gas-before-push/

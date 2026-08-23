@@ -28,9 +28,25 @@
     body {
       font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP",
         "Yu Gothic UI", "Meiryo", -apple-system, "Segoe UI", sans-serif;
-      font-size: 1.0625rem; line-height: 1.9; letter-spacing: .01em;
-      max-width: 820px; margin: 0 auto; padding: 24px 20px 48px;
+      /* 文字の大きさは画面幅で変える。固定だと、電子黒板では小さすぎ、
+         スマートフォンでは行が短くなりすぎる。 */
+      font-size: clamp(16px, 0.3vw + 15px, 18px); line-height: 1.9; letter-spacing: .01em;
+      max-width: 820px; margin: 0 auto;
+      /* 切り欠きのある端末で、本文が耳やホームバーに潜り込まないようにする */
+      padding: 24px max(20px, env(safe-area-inset-right)) calc(48px + env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
       color: var(--text); background: var(--bg); -webkit-text-size-adjust: 100%;
+      /* 素早い連打で勝手に拡大するのだけ止める。二本指で広げる余地は残す */
+      touch-action: manipulation;
+    }
+    /* 動きに酔いやすい人・前庭障害のある人の設定を尊重する。
+       .01ms であって 0 ではない（0 にすると fill-mode: forwards が効かなくなる） */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+        scroll-behavior: auto !important;
+      }
     }
     a { color: var(--link); text-decoration: underline; text-underline-offset: .18em; }
     a:visited { color: var(--link-visited); }
@@ -70,13 +86,14 @@
 <body>
   <main>
     <h1>プライバシーポリシー</h1>
-    <p class="meta"><span>Digital-Newspaper</span><span>最終更新：2026年08月17日</span></p>
+    <p class="meta"><span>Digital-Newspaper</span><span>最終更新：2026年08月23日</span></p>
 
     <div class="callout">
       <p><strong>要点</strong></p>
       <ul>
         <li>Digital-Newspaper は、利用者を追跡するための情報を集めていません。</li>
-        <li>入力されたデータは、原則として利用者ご自身の端末またはご自身の Google アカウント内に保存されます。</li>
+        <li>入力されたデータは、<strong>利用者の端末のブラウザ内にのみ</strong>保存されます。制作者のサーバーはありません。</li>
+        <li>端末どうしで記事をやりとりするときは、WebRTC による直接通信を使います。記事の中身が中継サーバーに残ることはありません。</li>
         <li>制作者が、利用者のデータを閲覧したり、第三者に販売・提供したりすることはありません。</li>
       </ul>
     </div>
@@ -96,16 +113,22 @@
         </thead>
         <tbody>
           <tr>
-            <th>利用者が入力したデータ</th>
+            <th>利用者が入力したデータ<br>（記事の題名・本文・記者名・タグ・写真）</th>
             <td data-label="取得する場面">アプリの利用中</td>
             <td data-label="利用目的">アプリの機能を提供するため</td>
-            <td data-label="保存場所">利用者の端末のブラウザ内、または利用者ご自身の Google アカウント（Google ドライブ／スプレッドシート）</td>
+            <td data-label="保存場所">利用者の端末のブラウザ内のみ。文字はローカルストレージ、写真は IndexedDB に保存します。写真は端末内で縮小してから保存します</td>
           </tr>
           <tr>
-            <th>Google アカウント情報<br>（メールアドレス・氏名・プロフィール画像）</th>
-            <td data-label="取得する場面">Google ログインを行った場合のみ</td>
-            <td data-label="利用目的">ログインしている本人を画面に表示し、ご自身のファイルへ読み書きするため</td>
-            <td data-label="保存場所">ブラウザ内のみ（制作者のサーバーには送信されません）</td>
+            <th>ほかの端末から届いた記事</th>
+            <td data-label="取得する場面">「記事を あつめる」で接続しているあいだ</td>
+            <td data-label="利用目的">紙面を組むため</td>
+            <td data-label="保存場所">受け取った端末のブラウザ内のみ</td>
+          </tr>
+          <tr>
+            <th>接続のための一時的な情報<br>（あいことば・端末ごとのランダムな識別子・IPアドレス）</th>
+            <td data-label="取得する場面">端末どうしをつなぐとき</td>
+            <td data-label="利用目的">つなぎ先を見つけるため（WebRTC の仲介）</td>
+            <td data-label="保存場所">PeerJS の公開シグナリングサーバー（第三者）。<strong>記事の中身は送られません</strong></td>
           </tr>
           <tr>
             <th>アクセスログ</th>
@@ -118,41 +141,42 @@
     </div>
 
         <h2>3. 配信のしくみと保存先について</h2>
-    <p>Digital-Newspaper は <a href="https://developers.google.com/apps-script" target="_blank" rel="noopener">Google Apps Script</a> のウェブアプリとして動きます。画面は Google のサーバー（script.google.com）から配信され、入力されたデータは<strong>導入した学校・先生ご自身の Google スプレッドシートや Google ドライブ</strong>に保存されます。</p><p>制作者が独自に運用するデータベースやアプリケーションサーバーはありません。そのため、利用者が入力したデータが制作者の手元に集まることはありません。</p>
-
-    <h2>4. Google API を利用する場合の取り扱い</h2>
-    <p>Digital-Newspaper が Google アカウントへのログインを求める場合、その目的はアプリの機能を提供することに限られます。</p>
+    <p>Digital-Newspaper は、GitHub Pages に置かれた静的なファイル（HTML・JavaScript・画像）だけでできています。<strong>制作者が運用するデータベースやアプリケーションサーバーはありません。</strong>アカウント登録もログインもありません。</p>
+    <p>入力された記事・写真・紙面の設定は、すべて<strong>その端末のブラウザの中</strong>にだけ保存されます（記事の文字と設定はローカルストレージ、写真は IndexedDB）。制作者の手元にも、GitHub にも送信されません。別の端末で開いても、そのデータは出てきません。</p>
+    <h2>4. 端末どうしの通信について（WebRTC / PeerJS）</h2>
+    <p>「記事を あつめる／おくる」の機能は、<a href="https://peerjs.com/" target="_blank" rel="noopener">PeerJS</a>（WebRTC）による<strong>端末間の直接通信</strong>で行います。</p>
     <ul>
-      <li>アクセスを求める範囲（スコープ）は、機能の実現に必要な最小限にとどめます。</li>
-      <li>取得した情報は、利用者の画面表示と、利用者ご自身のファイルへの読み書きのためだけに使用します。</li>
-      <li>広告目的での利用、第三者への販売・提供、および人間による内容の閲覧は行いません。</li>
-      <li>アクセス権はいつでも
-        <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">Google アカウントの「サードパーティによるアクセス」</a>
-        から取り消すことができます。</li>
+      <li>つなぎ先を見つけるために、PeerJS が運営する公開のシグナリングサーバー（<code>0.peerjs.com</code>）を利用します。ここへ送られるのは<strong>あいことば・端末ごとのランダムな識別子・接続に必要なネットワーク情報（IPアドレスを含む）</strong>で、<strong>記事の題名・本文・写真は送られません</strong>。</li>
+      <li>記事そのものは端末どうしが直接やりとりします。<strong>中継サーバーに記事の中身は残りません。</strong></li>
+      <li><strong>あいことばは「宛先」であって「認証」ではありません。</strong>あいことばを知っている人は誰でもそのへやに接続でき、記事を送りこめます。使い終わったらへやを閉じてください。</li>
+      <li>通信を使わずに、記事を <code>.json</code> ファイルとして書き出して受けわたすこともできます。この場合、外部への通信は一切発生しません。</li>
     </ul>
-    <p>Google ユーザーデータの取り扱いは、
-      <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener">Google API サービスのユーザーデータに関するポリシー</a>
-      （限定的使用の要件を含む）に準拠します。</p>
-
         <h2>5. 児童・生徒の利用について</h2>
     <p>学校での利用を想定しています。児童生徒が利用する場合は、教職員の指導のもとでご利用ください。</p><p>本アプリは個人が開発したものであり、学校・教育委員会の公式なサービスではありません。<strong>導入にあたっては、設置者（教育委員会等）が定める情報セキュリティポリシーや個人情報の取扱基準を必ずご確認ください。</strong></p><p>16歳未満の方の個人情報については、保護者（法定代理人）の方にご確認いただいたうえでご利用ください。氏名など個人が特定される情報は、必要以上に入力しない運用を推奨します。</p>
 
     <h2>6. Cookie・ローカルストレージ</h2>
-    <p>Digital-Newspaper は、設定の保存や作業中データの一時保持のために、ブラウザのローカルストレージ等を使用することがあります。
+    <p>Digital-Newspaper は、記事・写真・設定の保存のために、ブラウザのローカルストレージと IndexedDB を使用します。
       これらは利用者の端末内にのみ保存され、ブラウザの設定から削除できます。
       広告や行動追跡を目的とした Cookie は使用していません。</p>
 
         <h2>7. 第三者提供・外国への送信について</h2>
     <p>法令に基づく場合を除き、制作者が利用者の情報を第三者に販売・提供することはありません。</p>
+    <p>アプリの表示のために、次の第三者のサービスへブラウザが接続します。いずれも接続の際に IP アドレス等の通信情報がその提供者に渡ります。</p>
+    <ul>
+      <li><strong>GitHub Pages</strong>（GitHub, Inc.／米国）… ページの配信</li>
+      <li><strong>Google Fonts</strong>（Google LLC／米国）… 書体の読み込み。塞がれていても、端末の書体で問題なく動作します</li>
+      <li><strong>PeerJS 公開シグナリングサーバー</strong>… 端末どうしをつなぐときのみ（前掲第4項）</li>
+    </ul>
+    <p>いずれも、記事の内容そのものが送られることはありません。</p>
 
     <h2>8. データの保存期間</h2>
-    <p>本アプリは、利用者が自分で削除するまでデータを保持します。制作者が保存期間を一方的に定めることはありません。</p><ul><li>端末のブラウザ内（ローカルストレージ等）に保存されたデータは、利用者が削除するまで残ります。</li><li>Google スプレッドシートやドライブに保存されたデータは、そのファイルの所有者（先生・学校）が管理します。学年の終わりなど区切りのタイミングで、不要になったデータを削除する運用をおすすめします。</li><li>生成AIへ送信した内容は、応答を受け取った時点で本アプリの中には残りません。Google 側での取り扱いは Google の定めによります。</li></ul>
+    <p>本アプリは、利用者が自分で削除するまでデータを保持します。制作者が保存期間を一方的に定めることはありません。</p><ul><li>端末のブラウザ内（ローカルストレージと IndexedDB）に保存されたデータは、利用者が削除するまで残ります。</li><li><strong>記事をあつめた端末には、送られてきた記事が残ります。</strong>学年の終わりなど区切りのタイミングで、不要になったものを削除する運用をおすすめします。</li><li>ブラウザの履歴・サイトデータを消去すると、保存されていたデータも消えます。残しておきたいものは、印刷するか <code>.json</code> に書き出してください。</li></ul>
 
     <h2>9. データの削除</h2>
     <ul>
-      <li>ブラウザ内に保存されたデータは、ブラウザの「閲覧データの削除」またはアプリ内の該当機能から削除できます。</li>
-      <li>Google ドライブ／スプレッドシートに保存されたデータは、利用者ご自身が Google ドライブ上で削除できます。</li>
-      <li>アプリへのアクセス権の取り消しは、前掲の Google アカウント設定から行えます。</li>
+      <li>記事ごとの「🗑️ けす」で 1 本ずつ削除できます（取り消せません）。</li>
+      <li>写真だけを消したいときは、「新聞を つくる」画面の「📷 写真をけす」を使います。</li>
+      <li>すべてを消すには、ブラウザの「閲覧データの削除」でこのサイトのデータを削除してください（ローカルストレージと IndexedDB の両方が消えます）。</li>
     </ul>
 
         <h2>10. 児童・生徒の利用について</h2>

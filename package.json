@@ -1,17 +1,12 @@
 {
   "name": "digital-newspaper",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "license": "MIT",
   "scripts": {
     "check": "node scripts/check-project.mjs",
     "test": "node --test tests/*.test.mjs",
-    "ci": "npm run check && npm test",
-    "gas:install": "npm install --no-save --no-package-lock --no-audit --no-fund @google/clasp@3.3.0",
-    "gas:login": "node scripts/gas-deploy.mjs login",
-    "gas:status": "node scripts/gas-deploy.mjs status",
-    "gas:backup": "node scripts/gas-deploy.mjs backup",
-    "gas:push": "node scripts/gas-deploy.mjs push",
-    "deploy": "node scripts/gas-deploy.mjs deploy"
+    "ci": "npm test && npm run check && npm run build:sw -- --check",
+    "build:sw": "node tools/build-sw.mjs"
   }
 }

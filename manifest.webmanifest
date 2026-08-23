@@ -1,0 +1,25 @@
+{
+  "name": "デジタル・クラス新聞社",
+  "short_name": "クラス新聞社",
+  "description": "学級新聞をブラウザだけで作れる学習アプリ。記事を書いて端末どうしで送りあい、A4の紙面に組んで印刷できます。",
+  "lang": "ja",
+  "dir": "ltr",
+
+  "id": "./",
+  "start_url": "./?source=pwa",
+  "scope": "./",
+
+  "display": "standalone",
+  "display_override": ["standalone", "fullscreen", "minimal-ui"],
+  "launch_handler": { "client_mode": ["navigate-existing", "auto"] },
+  "orientation": "any",
+  "background_color": "#eef1f5",
+  "theme_color": "#2c3e50",
+  "categories": ["education", "productivity"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

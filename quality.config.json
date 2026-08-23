@@ -1,0 +1,8 @@
+{
+  "$comment": "品質ゲートの設定。scripts/check-project.mjs が読む。検査を消さずに、免除の理由をここへ書く。",
+  "appName": "デジタル・クラス新聞社",
+  "repoName": "Digital-Newspaper",
+  "type": "A",
+  "entry": "index.html",
+  "waived": []
+}
