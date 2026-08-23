@@ -28,9 +28,25 @@
     body {
       font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP",
         "Yu Gothic UI", "Meiryo", -apple-system, "Segoe UI", sans-serif;
-      font-size: 1.0625rem; line-height: 1.9; letter-spacing: .01em;
-      max-width: 820px; margin: 0 auto; padding: 24px 20px 48px;
+      /* 文字の大きさは画面幅で変える。固定だと、電子黒板では小さすぎ、
+         スマートフォンでは行が短くなりすぎる。 */
+      font-size: clamp(16px, 0.3vw + 15px, 18px); line-height: 1.9; letter-spacing: .01em;
+      max-width: 820px; margin: 0 auto;
+      /* 切り欠きのある端末で、本文が耳やホームバーに潜り込まないようにする */
+      padding: 24px max(20px, env(safe-area-inset-right)) calc(48px + env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
       color: var(--text); background: var(--bg); -webkit-text-size-adjust: 100%;
+      /* 素早い連打で勝手に拡大するのだけ止める。二本指で広げる余地は残す */
+      touch-action: manipulation;
+    }
+    /* 動きに酔いやすい人・前庭障害のある人の設定を尊重する。
+       .01ms であって 0 ではない（0 にすると fill-mode: forwards が効かなくなる） */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+        scroll-behavior: auto !important;
+      }
     }
     a { color: var(--link); text-decoration: underline; text-underline-offset: .18em; }
     a:visited { color: var(--link-visited); }
@@ -57,7 +73,7 @@
 <body>
   <main>
     <h1>利用規約</h1>
-    <p class="meta"><span>Digital-Newspaper</span><span>最終更新：2026年08月17日</span></p>
+    <p class="meta"><span>Digital-Newspaper</span><span>最終更新：2026年08月23日</span></p>
 
     <div class="callout">
       <p><strong>要点</strong></p>
@@ -79,7 +95,7 @@
     <h2>第3条（データの取り扱い）</h2>
     <ol>
       <li>本アプリは静的ファイルとして配信され、制作者が運用するサーバーに利用者のデータが送信・保存されることはありません。</li>
-      <li>利用者が入力したデータは、利用者の端末内、または利用者ご自身の Google アカウント内に保存されます。</li>
+      <li>利用者が入力したデータは、利用者の端末のブラウザ内にのみ保存されます。制作者のサーバーには送信されません。</li>
       <li>ブラウザの設定変更、端末の故障、外部サービスの仕様変更等によりデータが失われる可能性があります。
         重要なデータについては、利用者ご自身の責任でバックアップを取得してください。</li>
       <li>詳細は<a href="https://digital-newspaper.giga-school.com/privacy.html">プライバシーポリシー</a>をご確認ください。</li>

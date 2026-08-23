@@ -1,7 +1,3 @@
-# Apps Script のローカル設定。スクリプトIDが入るのでコミットしない
-.clasp.json
-.clasprc.json
-
 # 秘密情報
 .env
 .env.*
@@ -18,6 +14,3 @@ Thumbs.db
 *.swp
 .idea/
 .vscode/
-
-# 反映前のGASの控え（CIの成果物として持ち出すので、リポジトリには置かない）
-dist/gas-before-push/
