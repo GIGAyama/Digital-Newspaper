@@ -125,9 +125,12 @@ docs/note/
 | 届いた合図が返ってはじめて「おくった」 | `onGuestData()` の `ack` の分岐。`sendArticle()` では立てない |
 | 届いた記事はチェックが入っていない | `onHostData()` が `upsertArticle(a, false)` を呼ぶ |
 | 自分の記事ははじめからチェックが入る | `upsertArticle()` の既定は `isMine(a)` |
-| 長辺八百ピクセル | `PHOTO_MAX_EDGE = 800` |
-| 六十から百キロバイト | AUDIT.md 第4回。実測 |
-| 写真つきで四十本くらい | `localStorage` 5MB ÷ 100KB。README.md の「写真は端末の中で小さくしてから持ちます」 |
+| 長辺千二百ピクセル | `PHOTO_MAX_EDGE = 1200` |
+| 百五十から三百キロバイト | AUDIT.md 第5回。実測 |
+| ローカルストレージは五メガバイト | 仕様上の下限。AUDIT.md 第5回の表 |
+| IndexedDB は九百二十五メガバイト | AUDIT.md 第5回。`navigator.storage.estimate()` の実測 |
+| 写真をローカルストレージに入れると四十本ほどで一杯 | AUDIT.md 第4回。5MB ÷ 100KB |
+| 書き込みが非同期で、タブを捨てるときに書き終わる保証が無い | AUDIT.md 第5回「なぜ全部を移さなかったのか」 |
 | 八割で赤くなる | `updateStorageMeter()` の `pct >= 80` |
 | QR は見た目の倍の画素 | `qrScale()` は `Math.max(2, ...)` |
 | 読み取れない白い四角が刷られた | AUDIT.md 第2回。QRious を cdnjs から読んでいた版の実測（塗られた画素 2500 → 0） |

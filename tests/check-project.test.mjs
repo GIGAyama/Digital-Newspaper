@@ -171,6 +171,10 @@ test('Service Worker', () => {
   hit({ 'sw.js': base + ' localStorage.getItem("x");' }, 'SW_LOCALSTORAGE');
   // 「localStorage には触れない」という注意書きだけで赤くしない
   miss({ 'sw.js': base + '\n/* localStorage には一切触れない */' }, 'SW_LOCALSTORAGE');
+  // 写真の置き場所（IndexedDB）にも触らせない
+  hit({ 'sw.js': base + ' indexedDB.deleteDatabase("dnp_photos_v1");' }, 'SW_INDEXEDDB');
+  miss({ 'sw.js': base + '\n/* indexedDB には一切触れない */' }, 'SW_INDEXEDDB');
+  miss({ 'sw.js': base }, 'SW_INDEXEDDB');
   hit({ 'sw.js': "const APP_VERSION='v1'; const S=['./offline.html'];" }, 'SW_NO_SKIP_WAITING');
   hit({ 'sw.js': "const APP_VERSION='v1'; SKIP_WAITING;" }, 'SW_NO_OFFLINE_PAGE');
   hit({ 'sw.js': "SKIP_WAITING; const S=['./offline.html'];" }, 'SW_NO_APP_VERSION');

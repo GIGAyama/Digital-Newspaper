@@ -1087,17 +1087,36 @@
 
     var LIMIT = {
       title: 80, body: 4000, reporter: 30, tag: 30,
-      // 写真は data URL のまま持つ。長辺 800px・JPEG 品質 0.68 なら
-      // ふつうの教室の写真で 60〜100KB におさまる。
-      // 上限はその 3 倍強。これを超えるものは受け取っても捨てる。
-      image: 400 * 1024,
+      // 受け取る写真の上限（data URL の文字数）。長辺 1200px・JPEG 品質 0.82 なら
+      // ふつうの教室の写真で 150〜300KB におさまる。上限はその数倍。
+      // これを超えるものは、届いても受け取らない。
+      image: 2 * 1024 * 1024,
       articles: 300
     };
 
-    /* 写真の縮小。localStorage はオリジンあたり 5MB 程度しかない。
-       もとの大きさのまま持つと、写真つきの記事が数本で埋まる。 */
-    var PHOTO_MAX_EDGE = 800;
-    var PHOTO_QUALITY = 0.68;
+    /* 写真の縮小。IndexedDB に置くので容量には余裕があるが、
+       元の大きさ（数MB）のまま持つ意味も無い。
+       1200px あれば、A4 の1段組みで全幅に伸ばしても 160dpi ほどになる
+       （3段組みなら 500dpi を超える）。 */
+    var PHOTO_MAX_EDGE = 1200;
+    var PHOTO_QUALITY = 0.82;
+
+    /* 写真の置き場所。
+       記事の文字は localStorage に置き、写真だけを IndexedDB に置く。
+
+       なぜ分けるか:
+         localStorage は 1 オリジンあたり 5MB 程度しかない。写真を base64 で
+         そこに入れると、40 本ほどで一杯になる（前の版がそうだった）。
+         IndexedDB は端末の空きに応じた大きさまで入り、しかも Blob を
+         そのまま持てるので base64 の 1.33 倍という水増しも起きない。
+
+       なぜ全部を IndexedDB にしないか:
+         IndexedDB の書き込みは非同期で、Chromebook がタブを捨てるときの
+         pagehide では最後まで書き終わる保証が無い。記事の文字は
+         localStorage の同期書き込みで確実に残す。写真は撮り直せるが、
+         書いた文章は撮り直せない。 */
+    var PHOTO_DB = 'dnp_photos_v1';
+    var PHOTO_STORE = 'photos';
 
     /* あいことば。見まちがえやすい 0 O 1 I L は入れない。 */
     var CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -1189,7 +1208,10 @@
         body: str(r.body, LIMIT.body),
         reporter: str(r.reporter, LIMIT.reporter),
         tag: str(r.tag, LIMIT.tag),
+        // image に中身が入るのは、届いた直後（まだ IndexedDB へ移していない）か、
+        // IndexedDB が使えない端末のとき。ふだんは空で、写真は photoInDb 側にある。
         image: image,
+        photoInDb: r.photoInDb === true,
         createdAt: when(r.createdAt),
         updatedAt: when(r.updatedAt),
         authorId: str(r.authorId, 64),
@@ -1266,7 +1288,9 @@
     })();
 
     var editingId = null;     // 「記事をかく」でいま開いている記事
-    var pendingPhoto = '';    // フォームで選んだ写真（data URL）
+    var pendingPhoto = null;  // フォームで選んだ写真（Blob）。保存のときに置き場所へ移す
+    var pendingPhotoUrl = '';  // その見本を出すための blob: URL
+    var pendingPhotoKept = false;  // 開いた記事の写真を、そのまま持ちこしているか
     var editingTags = [];     // タグ設定モーダルの作業用
 
     function isMine(a) { return !a.authorId || a.authorId === myId; }
@@ -1274,6 +1298,125 @@
       for (var i = 0; i < articles.length; i++) if (articles[i].id === id) return articles[i];
       for (var j = 0; j < desk.free.length; j++) if (desk.free[j].id === id) return desk.free[j];
       return null;
+    }
+
+    /* ===================================================================
+       3.5 写真の置き場所（IndexedDB）
+       ===================================================================
+       ここが使えないブラウザ（プライベートモードで塞がれている等）でも
+       アプリは動く。そのときは写真を data URL のまま記事に持ち、
+       localStorage へ書く（前の版と同じ形）。容量は 5MB のままになるので、
+       画面に出す「ためた りょう」もそれに合わせて出しかたを変える。
+       =================================================================== */
+    var photoDbPromise = null;
+    var photoDbBroken = false;
+    var photoUrls = {};       // 記事ID → 画面に出すための blob: URL
+
+    function photoDb() {
+      if (photoDbBroken) return Promise.resolve(null);
+      if (photoDbPromise) return photoDbPromise;
+      photoDbPromise = new Promise(function (resolve) {
+        var req;
+        try { req = window.indexedDB.open(PHOTO_DB, 1); }
+        catch (e) { photoDbBroken = true; resolve(null); return; }
+        req.onupgradeneeded = function () {
+          var db = req.result;
+          if (!db.objectStoreNames.contains(PHOTO_STORE)) db.createObjectStore(PHOTO_STORE);
+        };
+        req.onsuccess = function () { resolve(req.result); };
+        req.onerror = function () { photoDbBroken = true; resolve(null); };
+        req.onblocked = function () { photoDbBroken = true; resolve(null); };
+      });
+      return photoDbPromise;
+    }
+
+    /* 1 回ぶんのやりとり。db が無ければ null を返すので、
+       呼ぶ側は「入らなかった」として扱える。 */
+    function photoTx(mode, run) {
+      return photoDb().then(function (db) {
+        if (!db) return null;
+        return new Promise(function (resolve) {
+          var tx, store;
+          try {
+            tx = db.transaction(PHOTO_STORE, mode);
+            store = tx.objectStore(PHOTO_STORE);
+          } catch (e) { resolve(null); return; }
+          var req = run(store);
+          tx.onabort = tx.onerror = function () { resolve(null); };
+          tx.oncomplete = function () { resolve(req ? req.result : true); };
+        });
+      });
+    }
+
+    var putPhoto = function (id, blob) { return photoTx('readwrite', function (s) { return s.put(blob, id); }); };
+    var getPhoto = function (id) { return photoTx('readonly', function (s) { return s.get(id); }); };
+    var dropPhoto = function (id) { return photoTx('readwrite', function (s) { return s.delete(id); }); };
+    var photoKeys = function () { return photoTx('readonly', function (s) { return s.getAllKeys(); }); };
+
+    function setPhotoUrl(id, blob) {
+      if (photoUrls[id]) { try { URL.revokeObjectURL(photoUrls[id]); } catch (e) {} }
+      if (blob) photoUrls[id] = URL.createObjectURL(blob);
+      else delete photoUrls[id];
+    }
+
+    /* 画面に出すときの写真。IndexedDB に入っていれば blob: URL、
+       入れられなかったときは記事が持っている data URL。 */
+    function photoOf(a) { return (a && (photoUrls[a.id] || a.image)) || ''; }
+    function hasPhoto(a) { return !!(a && (a.photoInDb || a.image || photoUrls[a.id])); }
+
+    /* base64 を Blob に。fetch('data:...') でも取れるが、
+       CSP の connect-src に頼らずに済むほうを選ぶ。 */
+    function dataUrlToBlob(dataUrl) {
+      var m = /^data:([^;,]+);base64,(.*)$/.exec(dataUrl || '');
+      if (!m) return null;
+      var bin;
+      try { bin = atob(m[2]); } catch (e) { return null; }
+      var bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return new Blob([bytes], { type: m[1] });
+    }
+
+    function blobToDataUrl(blob) {
+      return new Promise(function (resolve) {
+        var reader = new FileReader();
+        reader.onload = function () { resolve(String(reader.result)); };
+        reader.onerror = function () { resolve(''); };
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    /* 送るとき・書き出すときだけ data URL に戻す。 */
+    function photoDataUrl(a) {
+      if (!a) return Promise.resolve('');
+      if (a.image) return Promise.resolve(a.image);
+      if (!a.photoInDb) return Promise.resolve('');
+      return getPhoto(a.id).then(function (blob) {
+        return blob ? blobToDataUrl(blob) : '';
+      });
+    }
+
+    /* 記事に写真を結びつける。IndexedDB に入れば記事は軽いまま、
+       入らなければ記事が data URL を抱える（前の版と同じ形）。 */
+    function attachPhoto(a, blob) {
+      return putPhoto(a.id, blob).then(function (ok) {
+        if (ok !== null) {
+          a.photoInDb = true; a.image = '';
+          setPhotoUrl(a.id, blob);
+          return true;
+        }
+        return blobToDataUrl(blob).then(function (dataUrl) {
+          a.photoInDb = false;
+          a.image = (dataUrl && dataUrl.length <= LIMIT.image) ? dataUrl : '';
+          setPhotoUrl(a.id, null);
+          return !!a.image;
+        });
+      });
+    }
+
+    function detachPhoto(a) {
+      a.photoInDb = false; a.image = '';
+      setPhotoUrl(a.id, null);
+      return dropPhoto(a.id);
     }
 
     /* ===================================================================
@@ -1286,8 +1429,18 @@
       toast('この たんまつに ほぞん できませんでした。ほぞん りょうが いっぱいかも しれません。', 'error', 8000);
     }
 
+    /* localStorage へ書くのは文字だけ。IndexedDB に入っている写真の
+       data URL をここに混ぜると、分けた意味が無くなる。 */
+    function toStored(a) {
+      if (!a.photoInDb || !a.image) return a;
+      var copy = {};
+      Object.keys(a).forEach(function (k) { copy[k] = a[k]; });
+      copy.image = '';
+      return copy;
+    }
+
     function saveArticles() {
-      if (!lsWrite(KEY.articles, articles)) reportSaveFailure();
+      if (!lsWrite(KEY.articles, articles.map(toStored))) reportSaveFailure();
       updateStorageMeter();
     }
     function saveStates() { if (!lsWrite(KEY.states, states)) reportSaveFailure(); }
@@ -1300,10 +1453,15 @@
     }
 
     /* 端末にどれくらい溜まっているかを出す。
-       写真つきの記事は 1 本で 100KB ほど使う。黙って上限に当たると
-       「送ったのに保存されていない」になるので、先に見えるようにしておく。 */
-    var STORAGE_BUDGET = 4.5 * 1024 * 1024;
-    function usedBytes() {
+       黙って上限に当たると「送ったのに保存されていない」になるので、
+       先に見えるようにしておく。
+
+       写真が IndexedDB に入っているときは、ブラウザが教えてくれる
+       見積もり（navigator.storage.estimate）を使う。端末の空きに応じた
+       大きさなので、決め打ちの数字では出せない。
+       IndexedDB が使えない端末では、前の版と同じ 4.5MB を目安に出す。 */
+    var LS_BUDGET = 4.5 * 1024 * 1024;
+    function localBytes() {
       var total = 0;
       try {
         for (var i = 0; i < localStorage.length; i++) {
@@ -1313,17 +1471,45 @@
       } catch (e) { return -1; }
       return total * 2;   // localStorage は UTF-16 で数える実装が多い
     }
-    function updateStorageMeter() {
-      var bytes = usedBytes();
+
+    function showMeter(text, pct, tight) {
       var bar = $('storageBar');
       var label = $('storageLabel');
       if (!bar || !label) return;
-      if (bytes < 0) { label.textContent = 'ほぞん りょうを しらべられません'; bar.value = 0; return; }
-      var pct = Math.min(100, Math.round((bytes / STORAGE_BUDGET) * 100));
-      bar.value = pct;
-      label.textContent = 'この たんまつに ためた りょう：約 ' + (bytes / 1024 / 1024).toFixed(1) + 'MB（めやす 4.5MB の ' + pct + '%）';
-      if (pct >= 80) label.className = 'hint danger-text';
-      else label.className = 'hint';
+      bar.value = Math.max(0, Math.min(100, pct));
+      label.textContent = text;
+      label.className = tight ? 'hint danger-text' : 'hint';
+    }
+
+    var meterTimer = null;
+    function updateStorageMeter() {
+      // 記事を1本足すたびに estimate() を呼ぶと重い。まとめて 1 回にする
+      clearTimeout(meterTimer);
+      meterTimer = setTimeout(runStorageMeter, 300);
+    }
+
+    function runStorageMeter() {
+      var mb = function (n) { return (n / 1024 / 1024).toFixed(1) + 'MB'; };
+      if (!photoDbBroken && navigator.storage && navigator.storage.estimate) {
+        navigator.storage.estimate().then(function (est) {
+          var used = est.usage || 0;
+          var quota = est.quota || 0;
+          if (!quota) { showMeter('この たんまつに ためた りょう：約 ' + mb(used), 0, false); return; }
+          var pct = Math.round((used / quota) * 100);
+          showMeter('この たんまつに ためた りょう：約 ' + mb(used) + '（つかえる ' + mb(quota) + ' の ' + pct + '%）',
+            Math.max(pct, 1), pct >= 80);
+        }, function () { localMeter(); });
+        return;
+      }
+      localMeter();
+    }
+
+    function localMeter() {
+      var bytes = localBytes();
+      if (bytes < 0) { showMeter('ほぞん りょうを しらべられません', 0, false); return; }
+      var pct = Math.min(100, Math.round((bytes / LS_BUDGET) * 100));
+      showMeter('この たんまつに ためた りょう：約 ' + (bytes / 1024 / 1024).toFixed(1)
+        + 'MB（めやす 4.5MB の ' + pct + '%）', pct, pct >= 80);
     }
 
     /* ===================================================================
@@ -1410,13 +1596,25 @@
       for (var i = 0; i < list.length; i++) list[i].checked = (list[i].value === name);
     }
 
-    function setPhoto(dataUrl) {
-      pendingPhoto = dataUrl || '';
+    /* フォームの写真を差し替える。
+       blob には「これから保存する Blob」を、keepUrl には「すでに保存済みの
+       写真をそのまま見せるだけ」の URL を渡す（開いた記事を直すとき）。 */
+    function setPhoto(blob, keepUrl) {
+      if (pendingPhotoUrl) { try { URL.revokeObjectURL(pendingPhotoUrl); } catch (e) {} }
+      pendingPhotoUrl = '';
+      pendingPhoto = blob || null;
+      pendingPhotoKept = !blob && !!keepUrl;
+
       var img = $('photoPreview');
       var clear = $('btnPhotoClear');
-      if (pendingPhoto) {
-        img.src = pendingPhoto; img.hidden = false; clear.hidden = false;
-        $('photoNote').textContent = '小さくして しまいました：約 ' + Math.round(pendingPhoto.length / 1024) + 'KB';
+      var src = keepUrl || '';
+      if (blob) { pendingPhotoUrl = URL.createObjectURL(blob); src = pendingPhotoUrl; }
+
+      if (src) {
+        img.src = src; img.hidden = false; clear.hidden = false;
+        $('photoNote').textContent = blob
+          ? '小さくして しまいます：約 ' + Math.round(blob.size / 1024) + 'KB'
+          : 'この 記事に ついている 写真です。';
       } else {
         img.removeAttribute('src'); img.hidden = true; clear.hidden = true;
         $('fPhoto').value = '';
@@ -1440,7 +1638,12 @@
           canvas.width = cw; canvas.height = ch;
           var ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, cw, ch);
-          resolve(canvas.toDataURL('image/jpeg', PHOTO_QUALITY));
+          // toDataURL ではなく toBlob。IndexedDB には Blob のまま入れられるので、
+          // base64 にすると 1.33 倍に膨らむだけで得が無い。
+          canvas.toBlob(function (blob) {
+            if (blob) resolve(blob);
+            else reject(new Error('画像を作れませんでした'));
+          }, 'image/jpeg', PHOTO_QUALITY);
         };
         img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('画像を読めませんでした')); };
         img.src = url;
@@ -1451,20 +1654,21 @@
       var file = this.files && this.files[0];
       if (!file) { setPhoto(''); return; }
       $('photoNote').textContent = '小さくしています…';
-      shrinkPhoto(file).then(function (dataUrl) {
-        if (dataUrl.length > LIMIT.image) {
-          setPhoto('');
+      shrinkPhoto(file).then(function (blob) {
+        // base64 にしたときの長さで見る。送るときはこの形になるため
+        if (blob.size * 1.4 > LIMIT.image) {
+          setPhoto(null, '');
           toast('この 写真は 大きすぎて つかえません。べつの 写真を えらんでください。', 'error', 6000);
           return;
         }
-        setPhoto(dataUrl);
+        setPhoto(blob, '');
       }).catch(function () {
-        setPhoto('');
+        setPhoto(null, '');
         toast('この ファイルは 写真として 読めませんでした。', 'error');
       });
     });
     $('btnPhotoPick').addEventListener('click', function () { $('fPhoto').click(); });
-    $('btnPhotoClear').addEventListener('click', function () { setPhoto(''); });
+    $('btnPhotoClear').addEventListener('click', function () { setPhoto(null, ''); });
 
     $('fBody').addEventListener('input', function () {
       $('bodyCount').textContent = this.value.replace(/\n/g, '').length + '字';
@@ -1473,13 +1677,17 @@
     function formToArticle() {
       var now = Date.now();
       var base = editingId ? findArticle(editingId) : null;
+      // 写真そのものはここでは付けない。ID が決まってから置き場所へ移す。
+      // 開いた記事をそのまま保存するときだけ、いまの結びつきを引き継ぐ。
+      var keep = pendingPhotoKept && base;
       return normalizeArticle({
         id: base ? base.id : uuid(),
         title: $('fTitle').value.trim(),
         body: $('fBody').value,
         reporter: $('fReporter').value.trim(),
         tag: selectedTag(),
-        image: pendingPhoto,
+        image: keep ? base.image : '',
+        photoInDb: keep ? base.photoInDb : false,
         createdAt: base ? base.createdAt : now,
         updatedAt: now,
         authorId: myId,
@@ -1497,7 +1705,7 @@
       // 名前だけは引き継ぐ。毎回打ち直させない。
       if (a) $('fReporter').value = a.reporter;
       setSelectedTag(a ? a.tag : '');
-      setPhoto(a ? a.image : '');
+      setPhoto(null, a ? photoOf(a) : '');
       renderMine();
       $('fTitle').focus();
     }
@@ -1535,15 +1743,30 @@
       return a;
     }
 
+    /* 保存。写真の置き場所への書き込みは非同期なので Promise を返す。
+       記事そのもの（文字）は先に localStorage へ入れておく。
+       写真が入らなくても、書いた文章だけは残るようにするため。 */
     function saveFromForm(quiet) {
-      if (!validateForm()) return null;
+      if (!validateForm()) return Promise.resolve(null);
       var a = upsertArticle(formToArticle());
-      if (!a) return null;
+      if (!a) return Promise.resolve(null);
       editingId = a.id;
+
+      var blob = pendingPhoto;
+      var removed = !blob && !pendingPhotoKept && (a.photoInDb || a.image);
+      var work = blob ? attachPhoto(a, blob)
+        : (removed ? detachPhoto(a) : Promise.resolve(true));
+
       saveArticles(); saveStates();
       renderMine(); refreshDesk();
-      if (!quiet) toast('保存しました。', 'success');
-      return a;
+
+      return work.then(function () {
+        if (blob) { setPhoto(null, photoOf(a)); }
+        saveArticles();
+        renderMine(); refreshDesk();
+        if (!quiet) toast('保存しました。', 'success');
+        return a;
+      });
     }
 
     $('articleForm').addEventListener('submit', function (e) { e.preventDefault(); saveFromForm(false); });
@@ -1554,15 +1777,19 @@
     });
 
     $('btnSend').addEventListener('click', function () {
-      var a = saveFromForm(true);
-      if (!a) return;
-      if (p2p.role !== 'guest' || !p2p.open) {
-        toast('まだ つながって いません。「🔗 つながる」を おしてね。', 'error', 5000);
-        openModal('connectModal');
-        return;
-      }
-      if (sendArticle(a)) toast('おくりました。', 'success');
-      else toast('おくれませんでした。もういちど ためしてね。', 'error');
+      // 写真を置き場所へ移し終えてから送る。先に送ると写真が抜ける
+      saveFromForm(true).then(function (a) {
+        if (!a) return;
+        if (p2p.role !== 'guest' || !p2p.open) {
+          toast('まだ つながって いません。「🔗 つながる」を おしてね。', 'error', 5000);
+          openModal('connectModal');
+          return;
+        }
+        return sendArticle(a).then(function (ok) {
+          if (ok) toast('おくりました。', 'success');
+          else toast('おくれませんでした。もういちど ためしてね。', 'error');
+        });
+      });
     });
 
     function statusBadge(a) {
@@ -1590,7 +1817,7 @@
         var meta = el('div', { className: 'mine-meta' });
         meta.appendChild(statusBadge(a));
         if (a.tag) meta.appendChild(el('span', { text: '🏷️ ' + a.tag }));
-        if (a.image) meta.appendChild(el('span', { text: '📷 写真あり' }));
+        if (hasPhoto(a)) meta.appendChild(el('span', { text: '📷 写真あり' }));
         meta.appendChild(el('span', { text: fmtDate(a.updatedAt) }));
         item.appendChild(meta);
 
@@ -1603,20 +1830,32 @@
         var send = el('button', { className: 'btn btn-send btn-small', text: '📤 おくる', attrs: { type: 'button' } });
         send.addEventListener('click', function () {
           if (p2p.role !== 'guest' || !p2p.open) { toast('まだ つながって いません。', 'error'); openModal('connectModal'); return; }
-          if (sendArticle(a)) toast('おくりました。', 'success');
-          else toast('おくれませんでした。', 'error');
+          sendArticle(a).then(function (ok) {
+            if (ok) toast('おくりました。', 'success');
+            else toast('おくれませんでした。', 'error');
+          });
         });
         actions.appendChild(send);
 
         var copy = el('button', { className: 'btn btn-sub btn-small', text: '📄 コピー', attrs: { type: 'button' } });
         copy.addEventListener('click', function () {
           var c = normalizeArticle({
-            title: a.title, body: a.body, reporter: a.reporter, tag: a.tag, image: a.image,
+            title: a.title, body: a.body, reporter: a.reporter, tag: a.tag,
             createdAt: Date.now(), updatedAt: Date.now(), authorId: myId, authorName: a.reporter
           });
           if (!upsertArticle(c)) return;
           saveArticles(); saveStates(); loadIntoForm(c); refreshDesk();
           toast('コピーしました。', 'success');
+          // 写真も複製する。同じ Blob を、新しい ID でもう1つ持つ
+          if (!hasPhoto(a)) return;
+          photoDataUrl(a).then(function (dataUrl) {
+            var blob = dataUrl ? dataUrlToBlob(dataUrl) : null;
+            if (!blob) return;
+            return attachPhoto(c, blob).then(function () {
+              saveArticles(); renderMine(); refreshDesk();
+              if (editingId === c.id) setPhoto(null, photoOf(c));
+            });
+          });
         });
         actions.appendChild(copy);
 
@@ -1637,6 +1876,8 @@
     }
 
     function removeArticle(id) {
+      var gone = findArticle(id);
+      if (gone) detachPhoto(gone);
       articles = articles.filter(function (a) { return a.id !== id; });
       delete states[id];
       desk.order = desk.order.filter(function (x) { return x !== id; });
@@ -1649,15 +1890,28 @@
     $('btnExport').addEventListener('click', function () {
       var mine = articles.filter(isMine);
       if (!mine.length) { toast('書き出す 記事が ありません。', 'error'); return; }
-      var payload = { app: 'digital-newspaper', version: 1, exportedAt: Date.now(), articles: mine };
-      var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url;
-      a.download = 'newspaper-articles-' + new Date().toISOString().slice(0, 10) + '.json';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-      toast('ファイルに 書き出しました。', 'success');
+      $('btnExport').disabled = true;
+      // ファイルの中では写真も文字にしておく。JSON 1 つで渡しきれる形にするため
+      Promise.all(mine.map(function (a) {
+        return photoDataUrl(a).then(function (dataUrl) {
+          var copy = {};
+          Object.keys(a).forEach(function (k) { copy[k] = a[k]; });
+          copy.image = dataUrl; copy.photoInDb = false;
+          return copy;
+        });
+      })).then(function (list) {
+        var payload = { app: 'digital-newspaper', version: 1, exportedAt: Date.now(), articles: list };
+        var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'newspaper-articles-' + new Date().toISOString().slice(0, 10) + '.json';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        toast('ファイルに 書き出しました。', 'success');
+      }).catch(function () {
+        toast('書き出せませんでした。', 'error');
+      }).then(function () { $('btnExport').disabled = false; });
     });
 
     $('btnImport').addEventListener('click', function () { $('importFile').click(); });
@@ -1670,18 +1924,32 @@
         var data = safeParse(String(reader.result), null);
         var list = Array.isArray(data) ? data : (data && Array.isArray(data.articles) ? data.articles : null);
         if (!list) { toast('この ファイルには 記事が 入って いません。', 'error'); return; }
-        var added = 0;
+        var added = [];
         list.slice(0, LIMIT.articles).forEach(function (raw) {
           var a = normalizeArticle(raw);
+          a.photoInDb = false;   // ファイルの中の photoInDb は当てにしない
           if (!a.title && !a.body) return;
-          if (upsertArticle(a)) added++;
+          if (upsertArticle(a)) added.push(a);
         });
         saveArticles(); saveStates(); renderMine(); refreshDesk(); updateTagFilterOptions();
-        toast(added + '本 読みこみました。', added ? 'success' : 'info');
+        toast(added.length + '本 読みこみました。', added.length ? 'success' : 'info');
+        // 写真は置き場所へ移す。記事に data URL を抱えたままにしない
+        Promise.all(added.map(stashInlinePhoto)).then(function () {
+          saveArticles(); renderMine(); refreshDesk();
+        });
       };
       reader.onerror = function () { toast('ファイルを 読めませんでした。', 'error'); };
       reader.readAsText(file);
     });
+
+    /* 記事が data URL のまま写真を抱えていたら、置き場所へ移す。
+       P2P で届いたもの、ファイルから読んだもの、前の版から残っていたものが通る。 */
+    function stashInlinePhoto(a) {
+      if (!a || !a.image) return Promise.resolve(false);
+      var blob = dataUrlToBlob(a.image);
+      if (!blob) { a.image = ''; return Promise.resolve(false); }
+      return attachPhoto(a, blob);
+    }
 
     /* ===================================================================
        7.「新聞を つくる」画面
@@ -1837,7 +2105,7 @@
       row.appendChild(meta);
 
       /* 3段目：写真の置きかた（えらんでいて写真があるときだけ） */
-      if (st.checked && art.image) {
+      if (st.checked && hasPhoto(art)) {
         var box = el('div', { className: 'item-settings' });
         box.appendChild(pickRow('おきかた', st, 'imgPos', [
           ['top', '上'], ['float-left', '左に まわす'], ['float-right', '右に まわす'], ['bottom', '下']
@@ -1860,9 +2128,12 @@
         var dropPhoto = el('button', { className: 'btn btn-sub btn-small', text: '📷 写真をけす', attrs: { type: 'button' } });
         dropPhoto.addEventListener('click', function () {
           confirmThen('この記事の 写真を けしますか。ほぞん りょうが あきます。', function () {
-            art.image = ''; art.updatedAt = Date.now();
-            saveArticles(); renderMine(); refreshDesk();
-            toast('写真を けしました。', 'info');
+            art.updatedAt = Date.now();
+            detachPhoto(art).then(function () {
+              saveArticles(); renderMine(); refreshDesk();
+              if (editingId === art.id) setPhoto(null, '');
+              toast('写真を けしました。', 'info');
+            });
           });
         });
         box.appendChild(dropPhoto);
@@ -1954,7 +2225,8 @@
           edits.body !== undefined ? edits.body : art.body);
 
         var img = null;
-        if (art.image) {
+        var photoSrc = photoOf(art);
+        if (photoSrc) {
           var scale = (st.imgSize && st.imgSize !== 'default') ? st.imgSize : globalScale;
           var shape = (st.imgShape && st.imgShape !== 'default') ? st.imgShape : globalShape;
           var style = 'width:calc(var(--col-base-px) * ' + scale + ');';
@@ -1965,7 +2237,7 @@
           if (st.imgPos === 'float-right') cls += ' img-float-right';
           img = el('div', { className: cls, style: style });
           var im = el('img', { attrs: { alt: art.title ? art.title + 'の写真' : '記事の写真', referrerpolicy: 'no-referrer' } });
-          im.src = art.image;
+          im.src = photoSrc;
           img.appendChild(im);
         }
 
@@ -2365,6 +2637,11 @@
         send(conn, { t: 'ack', ids: [a.id] });
         broadcastStatus();
         toast('記事が とどきました：' + (a.title || '（タイトルなし）'), 'success', 4000);
+        // 届いた写真は data URL で来る。置き場所へ移してから保存し直す。
+        // 移す前に保存しても文字は残るので、写真が入らなくても記事は失われない。
+        stashInlinePhoto(a).then(function () {
+          saveArticles(); renderMine(); refreshDesk();
+        });
         return;
       }
 
@@ -2473,23 +2750,34 @@
       }
     }
 
+    /* 写真は置き場所にあるので、送るときだけ data URL に戻す。
+       そのぶん非同期になる。 */
     function sendArticle(a) {
-      if (p2p.role !== 'guest' || !p2p.hostConn || !p2p.hostConn.open) return false;
-      var payload = normalizeArticle(a);
-      payload.authorId = myId;
-      var ok = send(p2p.hostConn, { t: 'article', article: payload });
-      if (ok) {
-        // 相手の ack が返ってきて初めて「おくった」にする。
-        // ここで先に立てると、届いていないのに届いた顔になる。
-        $('sendHint').textContent = 'おくりました。とどいたら「おくった」に かわります。';
-      }
-      return ok;
+      if (p2p.role !== 'guest' || !p2p.hostConn || !p2p.hostConn.open) return Promise.resolve(false);
+      return photoDataUrl(a).then(function (dataUrl) {
+        if (p2p.role !== 'guest' || !p2p.hostConn || !p2p.hostConn.open) return false;
+        var payload = normalizeArticle(a);
+        payload.authorId = myId;
+        payload.image = dataUrl;
+        payload.photoInDb = false;
+        var ok = send(p2p.hostConn, { t: 'article', article: payload });
+        if (ok) {
+          // 相手の ack が返ってきて初めて「おくった」にする。
+          // ここで先に立てると、届いていないのに届いた顔になる。
+          $('sendHint').textContent = 'おくりました。とどいたら「おくった」に かわります。';
+        }
+        return ok;
+      });
     }
 
     function resendUnsent() {
       var waiting = articles.filter(function (a) { return isMine(a) && !a.sent; });
-      waiting.forEach(function (a) { sendArticle(a); });
-      if (waiting.length) toast(waiting.length + '本を おくりました。', 'info');
+      if (!waiting.length) return;
+      // 1本ずつ順に送る。まとめて投げると、写真つきが重なったときに詰まる
+      waiting.reduce(function (chain, a) {
+        return chain.then(function () { return sendArticle(a); });
+      }, Promise.resolve());
+      toast(waiting.length + '本を おくりました。', 'info');
     }
 
     $('btnConnect').addEventListener('click', function () { openModal('connectModal'); });
@@ -2639,7 +2927,49 @@
       updateStorageMeter();
       setMode(lsRead(KEY.mode, 'write') === 'desk' ? 'desk' : 'write');
       setChip('オフライン', '');
+      hydratePhotos();
     })();
+
+    /* 写真を置き場所から読みこむ。
+       文字は localStorage から同期で読めているので、画面はもう出ている。
+       写真だけが少し遅れて出る形にしてある（起動を待たせないため）。 */
+    function hydratePhotos() {
+      // 溜まったものを消されにくくする。断られても動作は変わらない
+      if (navigator.storage && navigator.storage.persist) {
+        navigator.storage.persist().catch(function () {});
+      }
+
+      var withPhoto = articles.filter(function (a) { return a.photoInDb; });
+      Promise.all(withPhoto.map(function (a) {
+        return getPhoto(a.id).then(function (blob) {
+          if (blob) setPhotoUrl(a.id, blob);
+          else a.photoInDb = false;   // 置き場所から消えていた
+        });
+      })).then(function () {
+        // 前の版から残っている、記事が data URL を抱えたままのものを移す
+        var inline = articles.filter(function (a) { return !!a.image; });
+        return Promise.all(inline.map(stashInlinePhoto)).then(function () {
+          return inline.length || withPhoto.length;
+        });
+      }).then(function (touched) {
+        if (touched) { saveArticles(); renderMine(); refreshDesk(); }
+        return sweepOrphanPhotos();
+      }).then(runStorageMeter);
+    }
+
+    /* 記事が消えたのに写真だけ残っている、を掃除する。
+       記事が1本も無いときは何もしない。localStorage だけが消えた直後に
+       走ると、残っている写真を全部消してしまうため。 */
+    function sweepOrphanPhotos() {
+      if (!articles.length) return Promise.resolve();
+      return photoKeys().then(function (keys) {
+        if (!Array.isArray(keys)) return;
+        var alive = {};
+        articles.forEach(function (a) { alive[a.id] = true; });
+        var orphans = keys.filter(function (k) { return !alive[k]; });
+        return Promise.all(orphans.map(dropPhoto));
+      });
+    }
 
   })();
   </script>

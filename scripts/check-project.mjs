@@ -195,6 +195,9 @@ export function inspect(files, opts = {}) {
     if (/caches\.keys\(\)/.test(src) && !/startsWith/.test(src))
       add('SW_CACHE_WIPE', f, '自アプリ以外のキャッシュまで消している疑い（startsWith で絞ること）');
     if (/localStorage/.test(src)) add('SW_LOCALSTORAGE', f, 'Service Worker が localStorage に触れている');
+    // 写真は IndexedDB に置いてある。キャッシュの掃除のついでにここへ手を出すと、
+    // 子どもの記事の写真が消える。localStorage と同じ理由で触らせない。
+    if (/indexedDB/.test(src)) add('SW_INDEXEDDB', f, 'Service Worker が IndexedDB に触れている');
     if (!/SKIP_WAITING/.test(src)) add('SW_NO_SKIP_WAITING', f, 'SKIP_WAITING を受け取れない（更新を適用できない）');
     if (!/offline\.html/.test(src)) add('SW_NO_OFFLINE_PAGE', f, 'offline.html を先読みしていない');
     if (!/APP_VERSION\s*=\s*['"][^'"]+['"]/.test(src)) add('SW_NO_APP_VERSION', f, 'APP_VERSION が無い');
@@ -298,7 +301,7 @@ const RULES = [
   'CSP_MISSING … Content-Security-Policy',
   'PWA_INSTALL_LATE / PWA_NO_INSTALL_BUTTON / PWA_NO_UPDATE_NOTICE / PWA_NO_SKIP_WAITING_UI / PWA_NO_APPLE_ICON',
   'PWA_MANIFEST_BROKEN / PWA_MANIFEST_PATH / PWA_ICONS … manifest',
-  'SW_CACHE_WIPE / SW_LOCALSTORAGE / SW_NO_SKIP_WAITING / SW_NO_OFFLINE_PAGE / SW_NO_APP_VERSION … Service Worker',
+  'SW_CACHE_WIPE / SW_LOCALSTORAGE / SW_INDEXEDDB / SW_NO_SKIP_WAITING / SW_NO_OFFLINE_PAGE / SW_NO_APP_VERSION … Service Worker',
   'RUBY_HARDCODED … ふりがなの色',
   'BAN_LS_CLEAR / BAN_POSTMESSAGE … 禁止事項',
   'SYNTAX … インラインの <script> の構文',
