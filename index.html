@@ -1,339 +1,329 @@
 <!DOCTYPE html>
 <html lang="ja">
-  <head>
-    <base target="_top">
-    <meta charset="UTF-8">
-    <!-- viewport-fit=cover は、iPad や画面に切り欠きのある端末で
-         安全領域（env(safe-area-inset-*)）を CSS から使えるようにするために要る。 -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>デジタルクラス新聞社</title>
-    <!-- Pico.css -->
-    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@1.5.10/css/pico.min.css">
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
-    <style>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>デジタルクラス新聞社｜ハサミもノリもいらない学級新聞アプリ</title>
+  <meta name="description" content="児童がタブレットから記事を送り、先生がチェックを入れて並べるだけで、A4 の学級新聞が縦書きで組み上がる無償のアプリです。Google アカウントが1つあれば、先生ご自身のドライブの中だけで動きます。">
+  <meta name="author" content="GIGAyama">
+  <meta name="theme-color" content="#8a3324">
+  <meta name="color-scheme" content="light dark">
+  <link rel="canonical" href="https://digital-newspaper.giga-school.com/">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="GIGA school">
+  <meta property="og:title" content="デジタルクラス新聞社｜ハサミもノリもいらない学級新聞アプリ">
+  <meta property="og:description" content="児童がタブレットから記事を送り、先生がチェックを入れて並べるだけ。A4 の学級新聞が縦書きで組み上がります。Google アカウントが1つあれば動きます。">
+  <meta property="og:url" content="https://digital-newspaper.giga-school.com/">
+  <meta property="og:image" content="https://digital-newspaper.giga-school.com/docs/note/images/07-paper-initial.png">
+  <meta property="og:locale" content="ja_JP">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #ffffff; --surface: #f7f5f2; --surface-strong: #efe9e3;
+      --text: #1c1917; --text-muted: #45403c; --accent: #8a3324;
+      --link: #9a3412; --link-visited: #6b3d8f; --border: #d6cec6;
+      --code-bg: #efeae5; --callout-bg: #fbf3ef;
+      --warn-bg: #fdf2e6; --warn-border: #a35200;
+      --btn-text: #ffffff;
+    }
+    @media (prefers-color-scheme: dark) {
       :root {
-        --primary: #2c3e50;
-        --accent: #3498db;
-        /* 選んだタグの面。--accent のままだと、その上に載る 11.4px の
-           ふりがなが 4.5 に届かない（実測 3.52）。色相は変えず1段濃くした版。 */
-        --accent-d: #2471a3;
-        --bg: #f4f6f8;
-        --card-bg: #ffffff;
-        --text: #000000;
+        --bg: #16151a; --surface: #201e24; --surface-strong: #2a272f;
+        --text: #eae7e2; --text-muted: #b3aca5; --accent: #f0a58c;
+        --link: #f3ab93; --link-visited: #d6b6f5; --border: #403c46;
+        --code-bg: #2a272f; --callout-bg: #241f22;
+        --warn-bg: #2a2118; --warn-border: #e0a35c;
+        --btn-text: #16151a;
       }
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP",
+        "Yu Gothic UI", "Meiryo", -apple-system, "Segoe UI", sans-serif;
+      font-size: 1.0625rem; line-height: 1.9; letter-spacing: .01em;
+      max-width: 820px; margin: 0 auto; padding: 24px 20px 48px;
+      color: var(--text); background: var(--bg); -webkit-text-size-adjust: 100%;
+    }
+    a { color: var(--link); text-decoration: underline; text-underline-offset: .18em; }
+    a:visited { color: var(--link-visited); }
+    :focus-visible { outline: 3px solid var(--link); outline-offset: 2px; border-radius: 3px; }
+    h1 { font-size: 1.9rem; line-height: 1.45; margin: 0 0 8px; }
+    h2 { font-size: 1.25rem; line-height: 1.6; margin: 2.4em 0 .6em; color: var(--accent); padding-bottom: 6px; border-bottom: 2px solid var(--border); }
+    h3 { font-size: 1.05rem; margin: 1.8em 0 .4em; }
+    p, li { color: var(--text); }
+    ul, ol { padding-left: 1.5em; }
+    li { margin-bottom: .4em; }
+    strong { font-weight: 700; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-size: .92em; overflow-wrap: anywhere; }
+    .lead { font-size: 1.1rem; color: var(--text-muted); margin: 0 0 20px; }
+    .meta { font-size: .95rem; color: var(--text-muted); margin: 0 0 24px; }
 
-      body {
-        font-family: "BIZ UDPGothic", "Helvetica Neue", sans-serif;
-        background-color: var(--bg);
-        color: var(--text);
-        padding-top: 30px;
-        padding-bottom: 50px;
-      }
-      
-      ruby { ruby-position: over; }
-      /* ふりがな。#555 のままだと、色のついたボタンの上に重なったとき
-         比 1.47 でほとんど読めなかった（実測）。
-         色のついた面では下の文字と同じ色を継がせる。
-         ふりがなが要るのは低学年の児童なので、いちばん読めなくて困る人が
-         いちばん読めない、という形になっていた。 */
-      rt { font-size: 0.6em; color: #5f6368; font-weight: normal; }
-      /* 児童が画面を連打するので、素早い連打で勝手に拡大するのだけ止める。
-         二本指で広げる余地は残す（見えづらい子が拡大できなくなるため）。 */
-      body { touch-action: manipulation; }
+    .callout { background: var(--callout-bg); border: 1px solid var(--border); border-left: 5px solid var(--accent); border-radius: 10px; padding: 16px 20px; margin: 20px 0; }
+    .callout--warn { background: var(--warn-bg); border-left-color: var(--warn-border); }
+    .callout :first-child { margin-top: 0; } .callout :last-child { margin-bottom: 0; }
+    .callout h2 { margin-top: 0; border: 0; padding: 0; font-size: 1.15rem; }
 
-      /* 切り欠きのある端末やホームバーに、中身が潜り込まないようにする */
-      body {
-        padding-left: env(safe-area-inset-left);
-        padding-right: env(safe-area-inset-right);
-        padding-bottom: env(safe-area-inset-bottom);
-      }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 24px 0 8px; }
+    .btn { display: inline-block; padding: 11px 20px; border-radius: 10px; text-decoration: none; border: 1px solid var(--accent); font-weight: 600; line-height: 1.5; }
+    .btn--primary { background: var(--accent); color: var(--btn-text); }
+    .btn--primary:visited { color: var(--btn-text); }
+    .btn--ghost { color: var(--link); background: transparent; }
 
-      /* 画面いっぱいに広げるものは 100vh ではなく 100dvh を使う。
-         iPad の Safari と Android の Chrome では、アドレスバーが出入りするぶん
-         100vh が実際の表示領域より大きくなり、いちばん下のボタンが隠れて押せなくなる。 */
-      .full-viewport { height: 100dvh; }
-      @supports not (height: 100dvh) {
-        .full-viewport { height: 100vh; }
-      }
+    .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
+    figure { margin: 0; }
+    figure img { width: 100%; height: auto; display: block; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+    figcaption { font-size: .9rem; color: var(--text-muted); margin-top: 6px; line-height: 1.7; }
+    .shot--wide { margin: 20px 0; }
+    @media (max-width: 560px) { .shots { grid-template-columns: 1fr; } }
 
-      /* 動きに酔いやすい子・前庭障害のある子のための設定を尊重する */
-      @media (prefers-reduced-motion: reduce) {
-        *, *::before, *::after {
-          animation-duration: 0.01ms !important;
-          animation-iteration-count: 1 !important;
-          transition-duration: 0.01ms !important;
-          scroll-behavior: auto !important;
-        }
-      }
+    .steps { counter-reset: step; list-style: none; padding-left: 0; }
+    .steps li { position: relative; padding-left: 2.4em; margin-bottom: .8em; }
+    .steps li::before {
+      counter-increment: step; content: counter(step);
+      position: absolute; left: 0; top: .35em;
+      width: 1.7em; height: 1.7em; border-radius: 50%;
+      background: var(--surface-strong); color: var(--accent);
+      font-size: .85em; font-weight: 700; line-height: 1.7em; text-align: center;
+    }
 
-      /* Windows のハイコントラストモード。色で区別している境目が消えるので枠線を出す */
-      @media (forced-colors: active) {
-        button, input, textarea, select, .admin-link, .tag-label, .file-drop-area {
-          border: 1px solid ButtonText;
-        }
-      }
+    .table-wrap { overflow-x: auto; margin: 16px 0; border: 1px solid var(--border); border-radius: 10px; }
+    table { border-collapse: collapse; width: 100%; font-size: .98rem; }
+    th, td { border-bottom: 1px solid var(--border); padding: 10px 14px; text-align: left; vertical-align: top; }
+    thead th { background: var(--surface-strong); white-space: nowrap; }
+    tbody tr:last-child th, tbody tr:last-child td { border-bottom: 0; }
+    @media screen and (max-width: 600px) {
+      .table-wrap { border: 0; border-radius: 0; overflow-x: visible; }
+      table { display: block; } thead { display: none; }
+      tbody, tbody tr, tbody th, tbody td { display: block; width: 100%; }
+      tbody tr { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+      tbody th, tbody td { border-bottom: 0; padding: 0; }
+      tbody th { margin-bottom: 6px; font-weight: 600; }
+      td::before { content: attr(data-label); display: block; font-size: .85em; font-weight: 600; color: var(--text-muted); margin-bottom: 2px; }
+    }
 
-      /* キーボードで操作しているときだけ、はっきりした枠を出す */
-      :focus-visible { outline: 3px solid #1f4e8c; outline-offset: 2px; }
+    footer { margin-top: 3em; padding-top: 16px; border-top: 1px solid var(--border); font-size: .95rem; color: var(--text-muted); }
+    footer a { margin-right: .2em; }
+    @media (max-width: 480px) { body { padding: 16px 14px 40px; } h1 { font-size: 1.55rem; } }
+    @media (prefers-reduced-motion: reduce) { * { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+    @media print {
+      :root { --bg:#fff; --surface:#fff; --surface-strong:#fff; --text:#000; --text-muted:#333; --accent:#000; --link:#000; --link-visited:#000; --border:#999; --code-bg:#fff; --callout-bg:#fff; --warn-bg:#fff; }
+      body { max-width: none; font-size: 10.5pt; }
+      .actions, .shots, .shot--wide { display: none; }
+    }
+  </style>
+</head>
 
+<body>
+  <main>
+    <h1>デジタルクラス新聞社</h1>
+    <p class="lead">児童がタブレットから記事を送り、先生はチェックを入れて順番を決めるだけ。
+      A4 一枚の学級新聞が、縦書きの段組みで組み上がります。小学校の教員が作った無償のアプリです。</p>
+    <p class="meta">Google アカウントが1つあれば動きます。サーバーの費用も、外部サービスの契約もありません。</p>
 
-      button rt,
-      .tag-label rt,
-      .success-title rt,
-      [class*="btn"] rt { color: inherit; }
-
-      .container { 
-        max-width: 650px; 
-        background: var(--card-bg); 
-        padding: 40px; 
-        border-radius: 12px; 
-        box-shadow: 0 4px 20px rgba(0,0,0,0.05); 
-        border: 1px solid #e1e4e8; 
-      }
-      
-      header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #f0f0f0; padding-bottom: 20px; }
-      h1 { color: #2c3e50; font-weight: 700; margin-bottom: 10px; font-size: 1.8rem; letter-spacing: 0.05em; }
-      .subtitle { color: #666; font-size: 0.95rem; }
-      
-      .form-group { margin-bottom: 25px; }
-      
-      label.input-label { 
-        font-weight: 700; color: #2c3e50; font-size: 1rem; margin-bottom: 8px; 
-        display: block; border-left: 4px solid var(--accent); padding-left: 10px;
-      }
-
-      input[type="text"], textarea { 
-        border: 2px solid #cbd5e0 !important; 
-        border-radius: 6px !important; 
-        padding: 12px !important; 
-        font-size: 1.1rem; 
-        color: #000000 !important; 
-        font-weight: 500;
-        background: #fff;
-        transition: 0.2s;
-        box-shadow: none !important;
-      }
-      /* もとは #888 で比 3.54。何を書けばよいかの合図なので、本文と同じ基準で測る。 */
-      input[type="text"]::placeholder, textarea::placeholder { color: #5f6368; font-weight: normal; }
-      input[type="text"]:focus, textarea:focus { 
-        border-color: var(--accent) !important; 
-        background: #fff;
-        box-shadow: 0 0 0 4px rgba(52,152,219,0.2) !important; 
-      }
-      
-      .tag-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 10px; }
-      .tag-radio { display: none; }
-      .tag-label {
-        display: flex; align-items: center; justify-content: center;
-        background: #f8f9fa; border: 1px solid #ddd; border-radius: 8px;
-        padding: 12px; cursor: pointer; transition: 0.2s;
-        font-weight: bold; color: #444; font-size: 0.95rem; text-align: center;
-      }
-      .tag-label:hover { background: #e9ecef; }
-      .tag-radio:checked + .tag-label {
-        background: var(--accent-d); color: white; border-color: var(--accent-d);
-        box-shadow: 0 4px 10px rgba(36,113,163,0.3); transform: translateY(-2px);
-      }
-      /* ふりがなの色はここで決め打たない。上の「色のついた面では継がせる」
-         指定（.tag-label rt { color: inherit }）に任せる。
-         決め打つと、面の色を変えたときに取り残される。実際に前回それで
-         送信ボタンだけ直り、ここが 3.52 のまま残っていた。 */
-      
-      .file-drop-area {
-        border: 2px dashed #cbd5e0; border-radius: 8px; padding: 20px; text-align: center;
-        background: #f8f9fa; transition: 0.2s; cursor: pointer;
-        /* もとは #888 で比 3.36。1段濃くする。 */
-        color: #5f6368;
-      }
-      .file-drop-area:hover { background: #fff; border-color: var(--accent); }
-      input[type="file"] { margin-top: 5px; }
-
-      button[type="submit"] { 
-        background-color: #2c3e50; border: none; border-radius: 8px; font-weight: bold; font-size: 1.1rem; 
-        padding: 16px; margin-top: 30px; width: 100%; color: white;
-        box-shadow: 0 4px 10px rgba(44, 62, 80, 0.2); transition: all 0.2s;
-      }
-      button[type="submit"]:hover { background-color: #34495e; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(44, 62, 80, 0.3); }
-      button[type="submit"]:active { transform: translateY(0); box-shadow: none; }
-      button[type="submit"]:disabled { background-color: #95a5a6; cursor: not-allowed; transform: none; box-shadow: none; }
-
-      .admin-link {
-        /* もとは #7f8c8d で比 3.48。高さも 41px しかなく 44px に届いていなかった。 */
-        display: inline-flex; align-items: center; justify-content: center;
-        min-height: 44px; color: #5a6673; text-decoration: none; font-size: 0.9rem;
-        padding: 10px 20px; border: 1px solid #cbd5e0; border-radius: 6px; background: white; transition: 0.2s; cursor: pointer;
-      }
-      .admin-link:hover { background: #f1f3f5; color: #2c3e50; border-color: #b0b8c1; }
-
-      #success-overlay {
-        display: none; position: fixed; top:0; left:0; width:100%; height:100%; 
-        background: rgba(255,255,255,0.98); z-index: 1000;
-        flex-direction: column; align-items: center; justify-content: center; text-align: center;
-      }
-      .checkmark-circle {
-        width: 100px; height: 100px; border-radius: 50%; background: #2ecc71;
-        display: flex; align-items: center; justify-content: center; margin-bottom: 20px;
-        animation: scaleIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      }
-      .checkmark { color: white; font-size: 50px; }
-      .success-title { font-size: 1.8rem; color: #2c3e50; font-weight: bold; margin-bottom: 10px; }
-      /* もとは #7f8c8d で、オーバーレイの地の上で比 3.21。 */
-      .success-sub { font-size: 1rem; color: #5a6673; }
-      @keyframes scaleIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-
-    </style>
-  </head>
-  <body>
-    <main class="container">
-      <header>
-        <h1>📰 デジタル・クラス<ruby>新<rt>しん</rt>聞<rt>ぶん</rt>社<rt>しゃ</rt></ruby></h1>
-        <div class="subtitle"><ruby>記<rt>き</rt>者<rt>しゃ</rt></ruby>ページ</div>
-      </header>
-
-      <form id="articleForm" onsubmit="submitForm(event)">
-        
-        <div class="form-group">
-          <label class="input-label" for="title">① <ruby>記<rt>き</rt>事<rt>じ</rt></ruby>のタイトル</label>
-          <input type="text" id="title" name="title" placeholder="例：運動会で練習の成果を出せたよ" required>
-        </div>
-
-        <div class="form-group">
-          <label class="input-label" for="body">② <ruby>本<rt>ほん</rt>文<rt>ぶん</rt></ruby> (<ruby>内<rt>ない</rt>容<rt>よう</rt></ruby>)</label>
-          <textarea id="body" name="body" rows="6" placeholder="いつ、どこで、だれが、なにをしたかな？ くわしく書いてみよう。" required></textarea>
-        </div>
-
-        <div class="form-group">
-          <label class="input-label" for="reporter">③ <ruby>記<rt>き</rt>者<rt>しゃ</rt></ruby>の<ruby>名<rt>な</rt>前<rt>まえ</rt></ruby></label>
-          <input type="text" id="reporter" name="reporter" placeholder="自分の名前を入力" required>
-        </div>
-
-        <div class="form-group">
-          <label class="input-label">④ タグ (<ruby>種<rt>しゅ</rt>類<rt>るい</rt></ruby>)</label>
-          <div class="tag-grid" id="tag-container">
-            <div style="grid-column: 1/-1; text-align:center; color:#999;">読み込み中...</div>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label class="input-label" for="image">⑤ <ruby>写<rt>しゃ</rt>真<rt>しん</rt></ruby> (<ruby>撮<rt>と</rt></ruby>ったもの)</label>
-          <div class="file-drop-area">
-            <input type="file" id="image" name="image" accept="image/*">
-            <p style="margin: 5px 0 0; font-size: 0.8rem; color: #5f6368;">ここをタップして写真を選んでね</p>
-          </div>
-        </div>
-
-        <button type="submit" id="submitBtn"><ruby>送<rt>そう</rt>信<rt>しん</rt></ruby>する</button>
-      </form>
-
-      <!-- 編集室への入口は児童には出さない。先生のアカウントで開いたときだけ表示する
-           （doGet が template.isTeacher を渡す。サーバー関数側でも同じ判定を通している） -->
-      <? if (isTeacher) { ?>
-      <div style="margin-top: 50px; text-align: center; border-top: 1px solid #eee; padding-top: 25px;">
-        <a href="<?= ScriptApp.getService().getUrl() ?>?p=admin" class="admin-link">編集ページへ</a>
-      </div>
-      <? } ?>
-    </main>
-
-    <div id="success-overlay">
-      <div class="checkmark-circle"><span class="checkmark">✔</span></div>
-      <div class="success-title"><ruby>送<rt>そう</rt>信<rt>しん</rt></ruby><ruby>完<rt>かん</rt>了<rt>りょう</rt></ruby>！</div>
-      <div class="success-sub"><ruby>先<rt>せん</rt>生<rt>せい</rt></ruby>のパソコンに<ruby>届<rt>とど</rt></ruby>きました。<br>3<ruby>秒<rt>びょう</rt></ruby><ruby>後<rt>ご</rt></ruby>に<ruby>戻<rt>もど</rt></ruby>ります。</div>
+    <div class="callout callout--warn">
+      <h2>このページからは、新聞を作れません</h2>
+      <p>このアプリは、<strong>先生おひとりずつが、ご自分の Google アカウントで公開して使う</strong>形です。
+        共通の入口はありません。</p>
+      <ul>
+        <li><strong>児童のみなさん</strong>は、先生から配られた URL を開いてください。このページではありません。</li>
+        <li><strong>先生方</strong>は、下の「入れかた」の手順で、ご自分の学級の URL を作ってください。10 分ほどで終わります。</li>
+      </ul>
+      <p>記事も写真も、公開した先生ご自身の Google ドライブの中だけに入ります。
+        制作者を含め、ほかの誰のところにもデータは行きません。</p>
     </div>
 
-    <script>
-      window.onload = function() {
-        google.script.run.withSuccessHandler(tags => {
-          const container = document.getElementById('tag-container');
-          container.innerHTML = '';
-          if(!tags || tags.length === 0) {
-            container.innerHTML = '<div style="grid-column:1/-1; color:#c0221f;">タグ設定がありません</div>';
-            return;
-          }
-          tags.forEach((t, i) => {
-            const label = document.createElement('label');
-            const requiredAttr = i === 0 ? 'required' : ''; 
-            let rubyHtml = t.name;
-            if(t.ruby) { rubyHtml = `<ruby>${t.name}<rt>${t.ruby}</rt></ruby>`; }
-            label.innerHTML = `
-              <input type="radio" class="tag-radio" name="tag" value="${t.name}" ${requiredAttr}>
-              <div class="tag-label">
-                <span style="margin-right:5px; font-size:1.2em;">${t.icon}</span> ${rubyHtml}
-              </div>`;
-            container.appendChild(label);
-          });
-        }).getTagsSettings();
-      };
+    <div class="actions">
+      <a class="btn btn--primary" href="https://giga-school.com/apps/digital-newspaper/">くわしい紹介を読む</a>
+      <a class="btn btn--ghost" href="https://github.com/GIGAyama/Digital-Newspaper" rel="noopener">コードを見る（GitHub）</a>
+    </div>
 
-      // ★ 堅牢な送信処理 (リトライ機能付き)
-      function submitForm(e) {
-        e.preventDefault();
-        const btn = document.getElementById('submitBtn');
-        const originalText = btn.innerHTML;
-        
-        btn.disabled = true;
-        btn.innerHTML = '⏳ <ruby>送<rt>そう</rt>信<rt>しん</rt></ruby><ruby>中<rt>ちゅう</rt></ruby>...';
+    <h2>どんなアプリか</h2>
+    <p>学級新聞を作ろう、と決めたところまではよかった。そのあとが大変だった。そんな覚えはありませんか。
+      原稿用紙を配って、集めて、画用紙に割り付けて、ハサミで切って、ノリで貼る。
+      子どもが書いた文章そのものは、とっくにできあがっています。
+      それを一枚の紙にする作業だけで、放課後がいくつも消えていきます。
+      このアプリが引き受けるのは、その<strong>「割り付けて、貼る」ところだけ</strong>です。</p>
 
-        const form = document.getElementById('articleForm');
-        
-        // タグ取得
-        const tagRadios = document.getElementsByName('tag');
-        let selectedTag = "";
-        for (const radio of tagRadios) { if (radio.checked) { selectedTag = radio.value; break; } }
+    <div class="shots">
+      <figure>
+        <img src="docs/note/images/01-child-form.png" width="780" height="3600"
+             alt="児童の記者ページ。上からタイトル、本文、記者名、タグ、写真の記入欄が縦に並んでいる" decoding="async">
+        <figcaption>子どもが開く画面は、記入欄が5つ並んだ一枚きり。漢字にはふりがなが付いています。</figcaption>
+      </figure>
+      <figure>
+        <img src="docs/note/images/06-admin-list.png" width="1240" height="2400"
+             alt="先生の記事一覧。届いた記事が新しい順に並び、それぞれにチェックボックスが付いている" loading="lazy" decoding="async">
+        <figcaption>先生の画面には届いた記事が新しい順に並びます。チェックを入れた記事だけが紙面に載ります。</figcaption>
+      </figure>
+    </div>
 
-        const fileInput = document.getElementById('image');
-        const file = fileInput.files[0];
-        const reader = new FileReader();
-        
-        reader.onloadend = function() {
-          const data = {
-            title: form.title.value,
-            body: form.body.value,
-            reporter: form.reporter.value,
-            tag: selectedTag,
-            image: reader.result ? reader.result.split(',')[1] : null,
-            mimeType: file ? file.type : null
-          };
+    <figure class="shot--wide">
+      <img src="docs/note/images/07-paper-initial.png" width="2000" height="2520"
+           alt="組み上がった学級新聞の紙面。縦書き三段で、見出しと本文と写真が並んでいる" loading="lazy" decoding="async">
+      <figcaption>設定を何も触らないまま開いても、もう縦書き三段の新聞の形になっています。
+        紙面の文字は、その上でそのまま打ち直せます。</figcaption>
+    </figure>
 
-          // リトライ機能付き送信 (最大3回試行)
-          trySend(data, 0);
-        };
+    <h3>使うときの流れ</h3>
+    <ol class="steps">
+      <li>先生が URL を配ります。児童は名前とタイトルと本文を入れて送ります。写真も1枚付けられます。</li>
+      <li>先生が編集室を開くと、届いた記事が一覧に並びます。載せたいものにチェックを入れます。</li>
+      <li>ドラッグで順番を入れかえ、段の数・文字の大きさ・テーマを選びます。紙面はその場で組み直ります。</li>
+      <li>紙面の上で、新聞名・発行日・見出し・本文をそのまま打ち直します。</li>
+      <li>ブラウザの印刷から A4 に刷るか、PDF で保存します。</li>
+    </ol>
 
-        if (file) { reader.readAsDataURL(file); } else { reader.onloadend(); }
+    <h2>入れかた</h2>
+    <p>スプレッドシートをコピーして、公開の設定をするだけです。
+      準備するものは Google アカウント1つ。ふだんお使いの学校のアカウントで構いません。
+      10分ほどで終わります。</p>
 
-        // 再帰的なリトライ処理
-        function trySend(data, attempt) {
-          google.script.run
-            .withSuccessHandler(() => {
-              // 成功時
-              const overlay = document.getElementById('success-overlay');
-              overlay.style.display = 'flex';
-              setTimeout(() => {
-                form.reset();
-                overlay.style.display = 'none';
-                btn.disabled = false;
-                btn.innerHTML = originalText;
-              }, 3000);
-            })
-            .withFailureHandler((error) => {
-              // 失敗時: 同時実行制限などの場合はリトライ
-              if (attempt < 3) {
-                // 待ち時間を少しずつ増やす (2秒, 4秒, 6秒...)
-                const waitTime = (attempt + 1) * 2000;
-                btn.innerHTML = `⏳ 混雑中...待機(${attempt+1}/3)`;
-                setTimeout(() => {
-                  trySend(data, attempt + 1);
-                }, waitTime);
-              } else {
-                // 諦める
-                alert('送信に失敗しました。\nしばらく待ってからもう一度押してください。\n' + error);
-                btn.disabled = false;
-                btn.innerHTML = originalText;
-              }
-            })
-            .saveArticle(data);
-        }
-      }
-    </script>
-  </body>
+    <div class="actions">
+      <a class="btn btn--primary" href="https://docs.google.com/spreadsheets/d/12fUzOBaCbdeb-3QQrZBavh8zKtWTt7FkK1eoGCh41Ps/copy" rel="noopener">スプレッドシートをコピーして始める</a>
+    </div>
+
+    <ol class="steps">
+      <li>上のボタンを押し、「コピーを作成」を選びます。ご自分のドライブにファイルができます。</li>
+      <li>できたファイルを開き、上の「拡張機能」＞「Apps Script」を開きます。</li>
+      <li>右上の「デプロイ」＞「新しいデプロイ」＞種類は「ウェブアプリ」。
+        <strong>実行するユーザーは「自分」、アクセスできるユーザーは「同一ドメインの全員」</strong>を選んでください。</li>
+      <li>スプレッドシートに戻って再読み込みすると、上に「📰 新聞システム」メニューが出ます。
+        <strong>「2. 先生のメールアドレスを設定」で、ご自分のアカウントを登録します。</strong></li>
+      <li>「3. 先生用管理画面を開く」を選ぶと、先生用と児童用の2つの URL が出ます。
+        児童に配るのは<strong>児童用のほうだけ</strong>です。</li>
+    </ol>
+
+    <div class="callout">
+      <p><strong>コードは、コピーしたファイルの中に入っています。</strong>
+        貼り付ける作業はありません。記事もそのファイルの中に入るので、
+        どこにできたのかを探す必要もありません。</p>
+      <p>写真をためるドライブのフォルダは、最初の写真が届いたときに自動で作られます。
+        場所を決めたいときだけ、メニューの「1. 写真フォルダの設定」で指定してください。</p>
+    </div>
+
+    <div class="callout callout--warn">
+      <p><strong>児童に URL を配る前に、先生が先に「2. 先生のメールアドレスを設定」を済ませてください。</strong>
+        登録が済むまで、編集室は<strong>誰も</strong>開けません（安全側に倒してあります）。
+        登録したアカウント以外は、URL を知っていても編集室に入れず、
+        記事一覧を取り出す関数も呼べません。画面を隠すだけでなく、サーバー側で確かめています。</p>
+    </div>
+
+    <div class="callout callout--warn">
+      <p><strong>コピーできないときは、貼り付けでも入ります。</strong>
+        学校のポリシーで、外部のファイルのコピーが禁じられていることがあります。
+        その場合は <a href="https://github.com/GIGAyama/Digital-Newspaper#readme" rel="noopener">README の「B. ファイルを貼り付ける」</a>
+        をご覧ください。<code>Code.gs</code> と <code>post.html</code> と <code>admin.html</code> の3つを
+        Apps Script に貼る手順で、入るものは同じです。</p>
+    </div>
+
+    <p>入れかたの全文は
+      <a href="https://github.com/GIGAyama/Digital-Newspaper#readme" rel="noopener">README</a>、
+      当日の進め方は
+      <a href="https://github.com/GIGAyama/Digital-Newspaper/blob/main/MANUAL.md" rel="noopener">操作マニュアル</a>
+      にあります。作った理由と画面ごとの説明は
+      <a href="https://giga-school.com/apps/digital-newspaper/">紹介記事</a>にまとめました。</p>
+
+    <h2>シートを点検する・直す</h2>
+    <p>コピーしたスプレッドシートを開くと、上のメニューに「📰 新聞システム」が出ます。</p>
+    <ul>
+      <li><strong>4. シートを点検する</strong> … 中の作りがアプリの想定どおりかを確かめます。何も書き換えません。</li>
+      <li><strong>5. シートを直す</strong> … 直せるものだけを、確認を取ってから直します。
+        直すのは「無いシートを作る」「空のシートに見出しを書く」「見出しの書き方をそろえる」
+        「足りない列を右端に足す」の4つだけで、<strong>列を消したり動かしたりはしません</strong>。</li>
+    </ul>
+    <p>記事の読み書きは<strong>見出しの名前</strong>で行います。列を並べ替えても動きますし、
+      メモ用の列を右に足していただいても構いません。
+      ただし見出しの行（1行目）を消すと、どの列が何なのか分からなくなります。
+      消してしまったときは点検メニューがその旨を伝えるので、1行目に行を挿して見出しを戻してください
+      （データが動く操作なので、アプリは自動では直しません）。</p>
+
+    <h2>情報担当の先生へ</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>項目</th><th>このアプリの場合</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>フィルタリングで通すもの</th>
+            <td data-label="このアプリの場合">アプリ本体が置かれる <code>script.google.com</code> と、
+              紙面に写真を出すための <code>drive.google.com</code> です。
+              見た目のために書体（Google Fonts）と <code>unpkg.com</code> の CSS を読みますが、
+              どちらも届かなくても入力・送信・印刷はできます（実際に塞いだ状態で確かめています）。</td>
+          </tr>
+          <tr>
+            <th>外から読み込む実行コード</th>
+            <td data-label="このアプリの場合"><strong>0 バイト</strong>です。QR コードを作る部品はアプリの中に持っています。
+              以前は外部から読んでいて、塞がれると「枠は見えているのに中身が空の QR」が紙に刷られていました。</td>
+          </tr>
+          <tr>
+            <th>データの置き場所</th>
+            <td data-label="このアプリの場合">公開した先生ご自身のスプレッドシート1つと、ドライブのフォルダ1つだけ。
+              外部のサービスへは何も送りません。制作者もデータを見られません。</td>
+          </tr>
+          <tr>
+            <th>児童のアカウント権限</th>
+            <td data-label="このアプリの場合">サーバー側の処理は「デプロイした先生」として動きます。
+              <strong>児童は先生のスプレッドシートにもドライブにもアクセス権が要りません。</strong>
+              児童から見えるのは投稿画面だけです。</td>
+          </tr>
+          <tr>
+            <th>写真の公開範囲</th>
+            <td data-label="このアプリの場合">まず<strong>校内ドメイン内でリンクを知っている人だけ</strong>に限定します。
+              Google Workspace 以外のアカウントではその設定ができないため、その場合は<strong>非公開</strong>まで閉じ、
+              登録済みの先生にだけ閲覧権を渡します。どちらになったかは実行ログに残ります。</td>
+          </tr>
+          <tr>
+            <th>編集室に入れる人</th>
+            <td data-label="このアプリの場合">メニューで登録したメールアドレスだけです。
+              画面を隠すのではなく、サーバー側の関数ごとに確かめています。
+              未登録のうちは誰も入れません。</td>
+          </tr>
+          <tr>
+            <th>要求する権限</th>
+            <td data-label="このアプリの場合">このスプレッドシート、このアプリが作ったドライブのファイル、
+              スプレッドシートのメニュー、デプロイ URL の取得、メールアドレスの5つです。
+              ドライブ全体を読む権限は要求しません。</td>
+          </tr>
+          <tr>
+            <th>費用・アカウント登録</th>
+            <td data-label="このアプリの場合">どちらもありません。MIT ライセンスで公開しています。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>できないこと</h2>
+    <p>正直に書いておきます。</p>
+    <ul>
+      <li><strong>紙面は A4 一枚ぶんだけ</strong>です。枠からはみ出した記事は、画面にも印刷にも出ません。
+        段数・文字サイズ・写真の大きさで収めてください。</li>
+      <li><strong>承認の仕組みはありません。</strong>届いた記事は編集室にすべて出ます。
+        載せるかどうかはチェックで決まります。「不適切な記事が届かない」わけではありません。</li>
+      <li><strong>紙面の上で直した文章は、スプレッドシートに戻りません。</strong>
+        「一時保存」しておかないと、再読み込みで消えます。</li>
+      <li><strong>児童が自分の記事をあとから直したり消したりする画面はありません。</strong>
+        紙面を組んでいる最中に元の文章が変わるのを避けるためです。直しは先生が紙面の上で行います。</li>
+      <li><strong>記事を削除する機能はありません。</strong>消すにはスプレッドシートの行を直接消します。</li>
+      <li><strong>オフラインでは動きません。</strong><code>script.google.com</code> に接続できないと開けません。</li>
+      <li>キーワード検索が見るのはタイトルと記者名だけで、本文は対象にしません。</li>
+    </ul>
+  </main>
+
+  <footer>
+    <p>
+      <a href="https://giga-school.com/">GIGA school トップ</a>　/　
+      <a href="https://giga-school.com/apps/digital-newspaper/">紹介記事</a>　/　
+      <a href="https://github.com/GIGAyama/Digital-Newspaper" rel="noopener">GitHub</a>　/　
+      <a href="privacy.html">プライバシーポリシー</a>　/　
+      <a href="terms.html">利用規約</a>
+    </p>
+    <p>デジタルクラス新聞社（digital-newspaper.giga-school.com）／ GIGAyama</p>
+  </footer>
+</body>
+
 </html>

@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover は、iPad や画面に切り欠きのある端末で
+         安全領域（env(safe-area-inset-*)）を CSS から使えるようにするために要る。 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>デジタルクラス新聞社</title>
+    <!-- Pico.css -->
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@1.5.10/css/pico.min.css">
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --primary: #2c3e50;
+        --accent: #3498db;
+        /* 選んだタグの面。--accent のままだと、その上に載る 11.4px の
+           ふりがなが 4.5 に届かない（実測 3.52）。色相は変えず1段濃くした版。 */
+        --accent-d: #2471a3;
+        --bg: #f4f6f8;
+        --card-bg: #ffffff;
+        --text: #000000;
+      }
+
+      body {
+        font-family: "BIZ UDPGothic", "Helvetica Neue", sans-serif;
+        background-color: var(--bg);
+        color: var(--text);
+        padding-top: 30px;
+        padding-bottom: 50px;
+      }
+      
+      ruby { ruby-position: over; }
+      /* ふりがな。#555 のままだと、色のついたボタンの上に重なったとき
+         比 1.47 でほとんど読めなかった（実測）。
+         色のついた面では下の文字と同じ色を継がせる。
+         ふりがなが要るのは低学年の児童なので、いちばん読めなくて困る人が
+         いちばん読めない、という形になっていた。 */
+      rt { font-size: 0.6em; color: #5f6368; font-weight: normal; }
+      /* 児童が画面を連打するので、素早い連打で勝手に拡大するのだけ止める。
+         二本指で広げる余地は残す（見えづらい子が拡大できなくなるため）。 */
+      body { touch-action: manipulation; }
+
+      /* 切り欠きのある端末やホームバーに、中身が潜り込まないようにする */
+      body {
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+
+      /* 画面いっぱいに広げるものは 100vh ではなく 100dvh を使う。
+         iPad の Safari と Android の Chrome では、アドレスバーが出入りするぶん
+         100vh が実際の表示領域より大きくなり、いちばん下のボタンが隠れて押せなくなる。 */
+      .full-viewport { height: 100dvh; }
+      @supports not (height: 100dvh) {
+        .full-viewport { height: 100vh; }
+      }
+
+      /* 動きに酔いやすい子・前庭障害のある子のための設定を尊重する */
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
+      }
+
+      /* Windows のハイコントラストモード。色で区別している境目が消えるので枠線を出す */
+      @media (forced-colors: active) {
+        button, input, textarea, select, .admin-link, .tag-label, .file-drop-area {
+          border: 1px solid ButtonText;
+        }
+      }
+
+      /* キーボードで操作しているときだけ、はっきりした枠を出す */
+      :focus-visible { outline: 3px solid #1f4e8c; outline-offset: 2px; }
+
+
+      button rt,
+      .tag-label rt,
+      .success-title rt,
+      [class*="btn"] rt { color: inherit; }
+
+      .container { 
+        max-width: 650px; 
+        background: var(--card-bg); 
+        padding: 40px; 
+        border-radius: 12px; 
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05); 
+        border: 1px solid #e1e4e8; 
+      }
+      
+      header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #f0f0f0; padding-bottom: 20px; }
+      h1 { color: #2c3e50; font-weight: 700; margin-bottom: 10px; font-size: 1.8rem; letter-spacing: 0.05em; }
+      .subtitle { color: #666; font-size: 0.95rem; }
+      
+      .form-group { margin-bottom: 25px; }
+      
+      label.input-label { 
+        font-weight: 700; color: #2c3e50; font-size: 1rem; margin-bottom: 8px; 
+        display: block; border-left: 4px solid var(--accent); padding-left: 10px;
+      }
+
+      input[type="text"], textarea { 
+        border: 2px solid #cbd5e0 !important; 
+        border-radius: 6px !important; 
+        padding: 12px !important; 
+        font-size: 1.1rem; 
+        color: #000000 !important; 
+        font-weight: 500;
+        background: #fff;
+        transition: 0.2s;
+        box-shadow: none !important;
+      }
+      /* もとは #888 で比 3.54。何を書けばよいかの合図なので、本文と同じ基準で測る。 */
+      input[type="text"]::placeholder, textarea::placeholder { color: #5f6368; font-weight: normal; }
+      input[type="text"]:focus, textarea:focus { 
+        border-color: var(--accent) !important; 
+        background: #fff;
+        box-shadow: 0 0 0 4px rgba(52,152,219,0.2) !important; 
+      }
+      
+      .tag-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 10px; }
+      .tag-radio { display: none; }
+      .tag-label {
+        display: flex; align-items: center; justify-content: center;
+        background: #f8f9fa; border: 1px solid #ddd; border-radius: 8px;
+        padding: 12px; cursor: pointer; transition: 0.2s;
+        font-weight: bold; color: #444; font-size: 0.95rem; text-align: center;
+      }
+      .tag-label:hover { background: #e9ecef; }
+      .tag-radio:checked + .tag-label {
+        background: var(--accent-d); color: white; border-color: var(--accent-d);
+        box-shadow: 0 4px 10px rgba(36,113,163,0.3); transform: translateY(-2px);
+      }
+      /* ふりがなの色はここで決め打たない。上の「色のついた面では継がせる」
+         指定（.tag-label rt { color: inherit }）に任せる。
+         決め打つと、面の色を変えたときに取り残される。実際に前回それで
+         送信ボタンだけ直り、ここが 3.52 のまま残っていた。 */
+      
+      .file-drop-area {
+        border: 2px dashed #cbd5e0; border-radius: 8px; padding: 20px; text-align: center;
+        background: #f8f9fa; transition: 0.2s; cursor: pointer;
+        /* もとは #888 で比 3.36。1段濃くする。 */
+        color: #5f6368;
+      }
+      .file-drop-area:hover { background: #fff; border-color: var(--accent); }
+      input[type="file"] { margin-top: 5px; }
+
+      button[type="submit"] { 
+        background-color: #2c3e50; border: none; border-radius: 8px; font-weight: bold; font-size: 1.1rem; 
+        padding: 16px; margin-top: 30px; width: 100%; color: white;
+        box-shadow: 0 4px 10px rgba(44, 62, 80, 0.2); transition: all 0.2s;
+      }
+      button[type="submit"]:hover { background-color: #34495e; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(44, 62, 80, 0.3); }
+      button[type="submit"]:active { transform: translateY(0); box-shadow: none; }
+      button[type="submit"]:disabled { background-color: #95a5a6; cursor: not-allowed; transform: none; box-shadow: none; }
+
+      .admin-link {
+        /* もとは #7f8c8d で比 3.48。高さも 41px しかなく 44px に届いていなかった。 */
+        display: inline-flex; align-items: center; justify-content: center;
+        min-height: 44px; color: #5a6673; text-decoration: none; font-size: 0.9rem;
+        padding: 10px 20px; border: 1px solid #cbd5e0; border-radius: 6px; background: white; transition: 0.2s; cursor: pointer;
+      }
+      .admin-link:hover { background: #f1f3f5; color: #2c3e50; border-color: #b0b8c1; }
+
+      #success-overlay {
+        display: none; position: fixed; top:0; left:0; width:100%; height:100%; 
+        background: rgba(255,255,255,0.98); z-index: 1000;
+        flex-direction: column; align-items: center; justify-content: center; text-align: center;
+      }
+      .checkmark-circle {
+        width: 100px; height: 100px; border-radius: 50%; background: #2ecc71;
+        display: flex; align-items: center; justify-content: center; margin-bottom: 20px;
+        animation: scaleIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+      .checkmark { color: white; font-size: 50px; }
+      .success-title { font-size: 1.8rem; color: #2c3e50; font-weight: bold; margin-bottom: 10px; }
+      /* もとは #7f8c8d で、オーバーレイの地の上で比 3.21。 */
+      .success-sub { font-size: 1rem; color: #5a6673; }
+      @keyframes scaleIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <header>
+        <h1>📰 デジタル・クラス<ruby>新<rt>しん</rt>聞<rt>ぶん</rt>社<rt>しゃ</rt></ruby></h1>
+        <div class="subtitle"><ruby>記<rt>き</rt>者<rt>しゃ</rt></ruby>ページ</div>
+      </header>
+
+      <form id="articleForm" onsubmit="submitForm(event)">
+        
+        <div class="form-group">
+          <label class="input-label" for="title">① <ruby>記<rt>き</rt>事<rt>じ</rt></ruby>のタイトル</label>
+          <input type="text" id="title" name="title" placeholder="例：運動会で練習の成果を出せたよ" required>
+        </div>
+
+        <div class="form-group">
+          <label class="input-label" for="body">② <ruby>本<rt>ほん</rt>文<rt>ぶん</rt></ruby> (<ruby>内<rt>ない</rt>容<rt>よう</rt></ruby>)</label>
+          <textarea id="body" name="body" rows="6" placeholder="いつ、どこで、だれが、なにをしたかな？ くわしく書いてみよう。" required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="input-label" for="reporter">③ <ruby>記<rt>き</rt>者<rt>しゃ</rt></ruby>の<ruby>名<rt>な</rt>前<rt>まえ</rt></ruby></label>
+          <input type="text" id="reporter" name="reporter" placeholder="自分の名前を入力" required>
+        </div>
+
+        <div class="form-group">
+          <label class="input-label">④ タグ (<ruby>種<rt>しゅ</rt>類<rt>るい</rt></ruby>)</label>
+          <div class="tag-grid" id="tag-container">
+            <div style="grid-column: 1/-1; text-align:center; color:#999;">読み込み中...</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="input-label" for="image">⑤ <ruby>写<rt>しゃ</rt>真<rt>しん</rt></ruby> (<ruby>撮<rt>と</rt></ruby>ったもの)</label>
+          <div class="file-drop-area">
+            <input type="file" id="image" name="image" accept="image/*">
+            <p style="margin: 5px 0 0; font-size: 0.8rem; color: #5f6368;">ここをタップして写真を選んでね</p>
+          </div>
+        </div>
+
+        <button type="submit" id="submitBtn"><ruby>送<rt>そう</rt>信<rt>しん</rt></ruby>する</button>
+      </form>
+
+      <!-- 編集室への入口は児童には出さない。先生のアカウントで開いたときだけ表示する
+           （doGet が template.isTeacher を渡す。サーバー関数側でも同じ判定を通している） -->
+      <? if (isTeacher) { ?>
+      <div style="margin-top: 50px; text-align: center; border-top: 1px solid #eee; padding-top: 25px;">
+        <a href="<?= ScriptApp.getService().getUrl() ?>?p=admin" class="admin-link">編集ページへ</a>
+      </div>
+      <? } ?>
+    </main>
+
+    <div id="success-overlay">
+      <div class="checkmark-circle"><span class="checkmark">✔</span></div>
+      <div class="success-title"><ruby>送<rt>そう</rt>信<rt>しん</rt></ruby><ruby>完<rt>かん</rt>了<rt>りょう</rt></ruby>！</div>
+      <div class="success-sub"><ruby>先<rt>せん</rt>生<rt>せい</rt></ruby>のパソコンに<ruby>届<rt>とど</rt></ruby>きました。<br>3<ruby>秒<rt>びょう</rt></ruby><ruby>後<rt>ご</rt></ruby>に<ruby>戻<rt>もど</rt></ruby>ります。</div>
+    </div>
+
+    <script>
+      window.onload = function() {
+        google.script.run.withSuccessHandler(tags => {
+          const container = document.getElementById('tag-container');
+          container.innerHTML = '';
+          if(!tags || tags.length === 0) {
+            container.innerHTML = '<div style="grid-column:1/-1; color:#c0221f;">タグ設定がありません</div>';
+            return;
+          }
+          tags.forEach((t, i) => {
+            const label = document.createElement('label');
+            const requiredAttr = i === 0 ? 'required' : ''; 
+            let rubyHtml = t.name;
+            if(t.ruby) { rubyHtml = `<ruby>${t.name}<rt>${t.ruby}</rt></ruby>`; }
+            label.innerHTML = `
+              <input type="radio" class="tag-radio" name="tag" value="${t.name}" ${requiredAttr}>
+              <div class="tag-label">
+                <span style="margin-right:5px; font-size:1.2em;">${t.icon}</span> ${rubyHtml}
+              </div>`;
+            container.appendChild(label);
+          });
+        }).getTagsSettings();
+      };
+
+      // ★ 堅牢な送信処理 (リトライ機能付き)
+      function submitForm(e) {
+        e.preventDefault();
+        const btn = document.getElementById('submitBtn');
+        const originalText = btn.innerHTML;
+        
+        btn.disabled = true;
+        btn.innerHTML = '⏳ <ruby>送<rt>そう</rt>信<rt>しん</rt></ruby><ruby>中<rt>ちゅう</rt></ruby>...';
+
+        const form = document.getElementById('articleForm');
+        
+        // タグ取得
+        const tagRadios = document.getElementsByName('tag');
+        let selectedTag = "";
+        for (const radio of tagRadios) { if (radio.checked) { selectedTag = radio.value; break; } }
+
+        const fileInput = document.getElementById('image');
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        
+        reader.onloadend = function() {
+          const data = {
+            title: form.title.value,
+            body: form.body.value,
+            reporter: form.reporter.value,
+            tag: selectedTag,
+            image: reader.result ? reader.result.split(',')[1] : null,
+            mimeType: file ? file.type : null
+          };
+
+          // リトライ機能付き送信 (最大3回試行)
+          trySend(data, 0);
+        };
+
+        if (file) { reader.readAsDataURL(file); } else { reader.onloadend(); }
+
+        // 再帰的なリトライ処理
+        function trySend(data, attempt) {
+          google.script.run
+            .withSuccessHandler(() => {
+              // 成功時
+              const overlay = document.getElementById('success-overlay');
+              overlay.style.display = 'flex';
+              setTimeout(() => {
+                form.reset();
+                overlay.style.display = 'none';
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+              }, 3000);
+            })
+            .withFailureHandler((error) => {
+              // 失敗時: 同時実行制限などの場合はリトライ
+              if (attempt < 3) {
+                // 待ち時間を少しずつ増やす (2秒, 4秒, 6秒...)
+                const waitTime = (attempt + 1) * 2000;
+                btn.innerHTML = `⏳ 混雑中...待機(${attempt+1}/3)`;
+                setTimeout(() => {
+                  trySend(data, attempt + 1);
+                }, waitTime);
+              } else {
+                // 諦める
+                alert('送信に失敗しました。\nしばらく待ってからもう一度押してください。\n' + error);
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+              }
+            })
+            .saveArticle(data);
+        }
+      }
+    </script>
+  </body>
+</html>

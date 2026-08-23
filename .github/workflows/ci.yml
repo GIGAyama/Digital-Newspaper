@@ -22,11 +22,12 @@ jobs:
 
       # 品質ゲートそのものが正しく動くかを先に確かめる。
       # 検査が壊れていると「0件でした」が意味を持たないため、順序を入れ替えない。
+      # Code.gs のシート点検・修整のテスト（tests/schema.test.mjs）も同じ指示で回る。
       - name: 検査そのものを確かめる（わざと壊した入力で）
-        run: node --test tests/check-project.test.mjs
+        run: npm test
 
       - name: 品質ゲート
-        run: node scripts/check-project.mjs
+        run: npm run check
 
   # 正本（GIGAyama.github.io/standards/）からコピーしたファイルが、
   # 正本の更新に取り残されていないかを見る。standards-map.json が対応表。

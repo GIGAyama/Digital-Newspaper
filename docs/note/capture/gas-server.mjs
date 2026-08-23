@@ -2,7 +2,7 @@
  *
  *   node docs/note/capture/gas-server.mjs 4180
  *
- * このリポジトリは Google Apps Script のウェブアプリで、画面（index.html /
+ * このリポジトリは Google Apps Script のウェブアプリで、画面（post.html /
  * admin.html）は `google.script.run` 越しに Code.gs を呼ぶ。ビルド成果物が
  * 無いので serve.mjs では配れない。そこで、
  *
@@ -190,7 +190,7 @@ const GAS_SHIM = `<script>
 })();
 </script>`;
 
-const FONTS_INDEX = ['biz-udpgothic/400', 'biz-udpgothic/700'];
+const FONTS_POST = ['biz-udpgothic/400', 'biz-udpgothic/700'];
 const FONTS_ADMIN = [
   'shippori-mincho/400', 'shippori-mincho/700',
   'noto-sans-jp/400', 'noto-sans-jp/700',
@@ -204,7 +204,7 @@ const renderPage = (name) => {
   html = html.replace(/<\?=\s*ScriptApp\.getService\(\)\.getUrl\(\)\s*\?>/g, '/exec');
   html = html.replace('https://unpkg.com/@picocss/pico@1.5.10/css/pico.min.css', '/vendor/pico.min.css');
   html = html.replace(/https:\/\/fonts\.googleapis\.com\/css2\?[^"']*/g,
-    name === 'admin' ? '/vendor/fonts-admin.css' : '/vendor/fonts-index.css');
+    name === 'admin' ? '/vendor/fonts-admin.css' : '/vendor/fonts-post.css');
   html = html.replace('<meta charset="UTF-8">', `<meta charset="UTF-8">\n${GAS_SHIM}`);
   return html;
 };
@@ -248,9 +248,9 @@ const server = http.createServer((req, res) => {
   }
 
   if (path === '/' || path === '/exec') {
-    return send(res, 200, MIME['.html'], renderPage(url.searchParams.get('p') === 'admin' ? 'admin' : 'index'));
+    return send(res, 200, MIME['.html'], renderPage(url.searchParams.get('p') === 'admin' ? 'admin' : 'post'));
   }
-  if (path === '/vendor/fonts-index.css') return send(res, 200, MIME['.css'], fontCss(FONTS_INDEX));
+  if (path === '/vendor/fonts-post.css') return send(res, 200, MIME['.css'], fontCss(FONTS_POST));
   if (path === '/vendor/fonts-admin.css') return send(res, 200, MIME['.css'], fontCss(FONTS_ADMIN));
   if (path === '/vendor/pico.min.css') {
     return send(res, 200, MIME['.css'], readFileSync(join(REPO, 'node_modules/@picocss/pico/css/pico.min.css')));
