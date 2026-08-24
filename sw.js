@@ -12,7 +12,7 @@
  */
 const CACHE_PREFIX = 'digital-newspaper-';
 // APP_VERSION は手で上げない。node tools/build-sw.mjs が先読み対象の中身から自動で決める
-const APP_VERSION = 'v63adde4d'; /* __APP_VERSION__ */
+const APP_VERSION = 'vaa4acd5f'; /* __APP_VERSION__ */
 const CACHE_NAME = CACHE_PREFIX + APP_VERSION;
 
 const APP_SHELL = [

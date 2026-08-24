@@ -316,6 +316,12 @@
     .btn-row > .btn { flex: 1 1 auto; }
 
     .hint { color: var(--muted); font-size: .88rem; margin: 6px 0 0; }
+    /* 画面のいちばん下のクレジット。--muted は白地で 6.05 あり、AA を満たす */
+    .site-foot {
+      text-align: center; padding: 14px 12px 20px;
+      font-size: .82rem; color: var(--muted);
+    }
+    .site-foot a { color: inherit; margin-left: .6em; }
     .danger-text { color: var(--red-d); font-weight: 700; }
 
     /* =====================================================================
@@ -886,6 +892,15 @@
       </div>
     </section>
   </main>
+
+  <!-- offline.html には元からクレジットがあるが、この画面には無かった。
+       ほかのアプリと同じかたちで置き、紹介記事への行き先もここに足す。
+       ⚠️ no-print が要る。上の @media print で .no-print を消しているので、
+          印刷した新聞の下にクレジットが出てしまうことはない。 -->
+  <footer class="site-foot no-print">
+    ©2026 デジタル・クラス<ruby>新<rt>しん</rt>聞<rt>ぶん</rt>社<rt>しゃ</rt></ruby> GIGA<ruby>山<rt>やま</rt></ruby>
+    <a href="https://giga-school.com/apps/digital-newspaper/" target="_blank" rel="noopener">使い方を読む</a>
+  </footer>
 
   <!-- ==================================================================
        モーダル
