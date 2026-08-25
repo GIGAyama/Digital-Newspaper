@@ -1,5 +1,18 @@
 {
   "files": [
-    { "canonical": "sw/build-sw-static.mjs", "local": "tools/build-sw.mjs" }
+    {
+      "canonical": "sw/build-sw-static.mjs",
+      "local": "tools/build-sw.mjs"
+    }
+  ],
+  "dirs": [
+    {
+      "canonical": "skills/devlog-article",
+      "local": ".claude/skills/devlog-article"
+    },
+    {
+      "canonical": "skills/note-article",
+      "local": ".claude/skills/note-article"
+    }
   ]
 }
