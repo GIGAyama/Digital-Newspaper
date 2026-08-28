@@ -34,8 +34,8 @@
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'none';
     script-src 'self' 'unsafe-inline';
-    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-    font-src 'self' https://fonts.gstatic.com;
+    style-src 'self' 'unsafe-inline';
+    font-src 'self';
     img-src 'self' data: blob:;
     connect-src 'self' data: blob: https://0.peerjs.com wss://0.peerjs.com;
     manifest-src 'self';
@@ -87,9 +87,10 @@
 
   <!-- フォントは見た目だけのもの。学校のネットワークで塞がれても
        端末側のフォントに落ちるだけで、入力も送信も印刷もできる。 -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;700&family=Noto+Sans+JP:wght@400;700&family=Yomogi&family=Kiwi+Maru:wght@400;500&family=BIZ+UDPGothic:wght@400;700&display=swap">
+  <!-- 書体は自分のところから配る（生成物。node tools/fonts/build-fonts.mjs で作り直す）。
+       ここに Google Fonts への link を戻さないこと。学校のフィルタが
+       塞ぐと書体が当たらず、塞ぎ方によっては画面そのものが出ない。 -->
+  <link rel="stylesheet" href="./fonts.css" />
 
   <!-- 用紙の向きは印刷のときにだけ効く。JavaScript から書き替える -->
   <style id="dynamic-print-style"></style>
