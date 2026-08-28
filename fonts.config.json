@@ -1,0 +1,50 @@
+{
+  "families": [
+    {
+      "family": "Shippori Mincho",
+      "weights": [
+        400,
+        700
+      ]
+    },
+    {
+      "family": "Noto Sans JP",
+      "weights": [
+        400,
+        700
+      ]
+    },
+    {
+      "family": "Yomogi",
+      "weights": [
+        400
+      ]
+    },
+    {
+      "family": "Kiwi Maru",
+      "weights": [
+        400,
+        500
+      ]
+    },
+    {
+      "family": "BIZ UDPGothic",
+      "weights": [
+        400,
+        700
+      ]
+    }
+  ],
+  "grades": [
+    1,
+    2
+  ],
+  "scan": [
+    "index.html"
+  ],
+  "outDir": "fonts",
+  "cssPath": "fonts.css",
+  "hrefPrefix": "./fonts/",
+  "copyright": "Copyright The Shippori Mincho Project Authors\nCopyright The Noto Sans JP Project Authors\nCopyright The Yomogi Project Authors\nCopyright The Kiwi Maru Project Authors\nCopyright The BIZ UDPGothic Project Authors",
+  "license": "SIL Open Font License 1.1 — 全文は fonts/OFL.txt"
+}
