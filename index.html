@@ -901,6 +901,10 @@
   <footer class="site-foot no-print">
     ©2026 デジタル・クラス<ruby>新<rt>しん</rt>聞<rt>ぶん</rt>社<rt>しゃ</rt></ruby> GIGA<ruby>山<rt>やま</rt></ruby>
     <a href="https://giga-school.com/apps/digital-newspaper/" target="_blank" rel="noopener">使い方を読む</a>
+    <!-- 利用規約・プライバシーへの 行き先。中身は 正本の 部品
+         standards/web/giga-app-links.js（配布物 web/giga-app-links.js）が 出す。
+         この div は 置き場所なので、中は 空のままで よい。 -->
+    <div data-giga-links></div>
   </footer>
 
   <!-- ==================================================================
@@ -1068,6 +1072,13 @@
        塞いでいても、通信も QR も同じように動く。 -->
   <script src="vendor/qr-creator-1.0.0.min.js"></script>
   <script src="vendor/peerjs-1.5.2.min.js"></script>
+
+  <!-- フッターの <div data-giga-links> に 利用規約・プライバシーを 出す。
+       ⚠️ data-links は ここに 書く（div 側にも 書けるが、出すものを 決めるのは
+          読みこむ 側だと わかるように <script> に そろえてある）。
+          まだ docs/manual/ が 無いので「つかいかた」を 外して ある。
+          マニュアルを 書いたら この 属性ごと 消す。 -->
+  <script src="web/giga-app-links.js" data-links="terms,privacy" defer></script>
 
   <script>
   (function () {
