@@ -318,11 +318,21 @@
 
     .hint { color: var(--muted); font-size: .88rem; margin: 6px 0 0; }
     /* 画面のいちばん下のクレジット。--muted は白地で 6.05 あり、AA を満たす */
+    /* ⚠️ 1 行に収める。ここを折り返させると、新聞を組む場所がそのぶん狭くなる。
+       flex-wrap: nowrap と min-width: 0 の 2 つが要る。nowrap だけだと、
+       クレジットの文字列が縮まずに列を押し広げて横スクロールになる。
+       クレジット側は幅が足りなくなったら … で切る。行き先のリンクのほうは
+       狭い画面で絵だけになる（部品の側で決めている）ので、切らせない。 */
     .site-foot {
-      text-align: center; padding: 14px 12px 20px;
+      display: flex; flex-wrap: nowrap; align-items: center;
+      justify-content: center; gap: .2em;
+      padding: 4px 10px calc(4px + env(safe-area-inset-bottom));
       font-size: .82rem; color: var(--muted);
     }
-    .site-foot a { color: inherit; margin-left: .6em; }
+    .site-foot .site-foot__c {
+      min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .site-foot a { color: inherit; }
     .danger-text { color: var(--red-d); font-weight: 700; }
 
     /* =====================================================================
@@ -899,8 +909,17 @@
        ⚠️ no-print が要る。上の @media print で .no-print を消しているので、
           印刷した新聞の下にクレジットが出てしまうことはない。 -->
   <footer class="site-foot no-print">
-    ©2026 デジタル・クラス<ruby>新<rt>しん</rt>聞<rt>ぶん</rt>社<rt>しゃ</rt></ruby> GIGA<ruby>山<rt>やま</rt></ruby>
-    <a href="https://giga-school.com/apps/digital-newspaper/" target="_blank" rel="noopener">使い方を読む</a>
+    <span class="site-foot__c">©2026 デジタル・クラス<ruby>新<rt>しん</rt>聞<rt>ぶん</rt>社<rt>しゃ</rt></ruby> GIGA<ruby>山<rt>やま</rt></ruby></span>
+    <!-- ⚠️ ここに あった「使い方を読む」（紹介記事へのリンク）は 外した。
+         紹介記事は「なぜ 作ったか」を まだ 使っていない 先生に 向けて
+         書いた もので、いま 画面の 前で 困っている 人が 求める ものでは ない。
+         艦隊の ほかの アプリでも 既に 外れて いる。読み物への 道は
+         つかいかたの ページの 中に ある。 -->
+    <!-- 利用規約・プライバシーへの 行き先。中身は 正本の 部品
+         standards/web/giga-app-links.js（配布物 web/giga-app-links.js）が 出す。
+         この span は 置き場所なので、中は 空のままで よい。
+         ⚠️ <div> にしないこと。そこで 改行が 入って、フッターが 2 行に なる。 -->
+    <span data-giga-links></span>
   </footer>
 
   <!-- ==================================================================
@@ -1068,6 +1087,13 @@
        塞いでいても、通信も QR も同じように動く。 -->
   <script src="vendor/qr-creator-1.0.0.min.js"></script>
   <script src="vendor/peerjs-1.5.2.min.js"></script>
+
+  <!-- フッターの <div data-giga-links> に 利用規約・プライバシーを 出す。
+       ⚠️ data-links は ここに 書く（div 側にも 書けるが、出すものを 決めるのは
+          読みこむ 側だと わかるように <script> に そろえてある）。
+          まだ docs/manual/ が 無いので「つかいかた」を 外して ある。
+          マニュアルを 書いたら この 属性ごと 消す。 -->
+  <script src="web/giga-app-links.js" data-links="terms,privacy" defer></script>
 
   <script>
   (function () {

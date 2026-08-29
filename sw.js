@@ -12,7 +12,7 @@
  */
 const CACHE_PREFIX = 'digital-newspaper-';
 // APP_VERSION は手で上げない。node tools/build-sw.mjs が先読み対象の中身から自動で決める
-const APP_VERSION = 'v1231ff39'; /* __APP_VERSION__ */
+const APP_VERSION = 'v2c47b65d'; /* __APP_VERSION__ */
 const CACHE_NAME = CACHE_PREFIX + APP_VERSION;
 
 const APP_SHELL = [
@@ -27,6 +27,10 @@ const APP_SHELL = [
   './favicon.png',
   './vendor/peerjs-1.5.2.min.js',
   './vendor/qr-creator-1.0.0.min.js',
+  // 利用規約・プライバシーの行き先を出す部品。先読みに入れておかないと、
+  // オフラインで開いたときだけフッターのリンクが 1 本も出ない
+  // （行き先そのものは開けなくても、どこにあるかは見えているほうがいい）。
+  './web/giga-app-links.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/maskable-192.png',
