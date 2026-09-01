@@ -79,7 +79,7 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
         with:
           # Pages側の反映待ちは通常20秒ほどだが、混雑時は数十分キューに残ることがある。
           # 既定の10分では成果物のアップロードに成功していてもタイムアウトで失敗扱いになるため、
